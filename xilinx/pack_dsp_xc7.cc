@@ -24,15 +24,15 @@ NEXTPNR_NAMESPACE_BEGIN
 
 void XC7Packer::pack_dsps()
 {
-    std::unordered_map<IdString, XFormRule> dsp_rules;
+    dict<IdString, XFormRule> dsp_rules;
     dsp_rules[ctx->id("DSP48E1")].new_type = ctx->id("DSP48E1_DSP48E1");
     generic_xform(dsp_rules, true);
 
-    for (auto cell : sorted(ctx->cells)) {
-        CellInfo *ci = cell.second;
+    for (auto& cell : ctx->cells) {
+        CellInfo *ci = cell.second.get();
         if (ci->type == ctx->id("DSP48E1_DSP48E1")) {
             // DRC
-            NetInfo *clk = get_net_or_empty(ci, id_CLK);
+            NetInfo *clk = ci->getPort(id_CLK);
             if (clk != nullptr && clk->name != ctx->id("$PACKER_GND_NET"))
                 log_error("Clocked DSP48E1s are currently unsupported (while processing cell %s, clocked by %s).\n",
                           ctx->nameOf(ci), ctx->nameOf(clk));
@@ -42,7 +42,7 @@ void XC7Packer::pack_dsps()
                     if (port.second.net == nullptr)
                         continue;
                     if (port.second.net->name == ctx->id("$PACKER_GND_NET"))
-                        disconnect_port(ctx, ci, port.first);
+                        ci->disconnectPort(port.first);
                     else
                         log_error("Cascaded DSP48E1s are currently unsupported (while processing cell %s).\n",
                                   ctx->nameOf(ci));
