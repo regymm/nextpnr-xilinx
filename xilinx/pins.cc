@@ -459,9 +459,6 @@ void get_tied_pins(Context *ctx, dict<IdString, dict<IdString, bool>> &tied_pins
     }
 
     // IO logic primitives
-    tied_pins[ctx->id("ODDR")][ctx->id("SR")] = false;
-    tied_pins[ctx->id("ODDR")][ctx->id("CE")] = true;
-
     tied_pins[ctx->id("IDDRE1")][ctx->id("R")] = false;
     tied_pins[ctx->id("ODDRE1")][ctx->id("SR")] = false;
 
