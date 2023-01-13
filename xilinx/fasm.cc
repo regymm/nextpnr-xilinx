@@ -875,7 +875,7 @@ struct FasmBackend
             write_bit("ISERDES.NUM_CE.N1");
 
             // Switch IDELMUXE3 to include the IDELAY element, if we have an IDELAYE2 driving D
-            NetInfo *d = get_net_or_empty(ci, ctx->id("D"));
+            NetInfo *d = ci->getPort(ctx->id("D"));
             if (d == nullptr || d->driver.cell == nullptr)
                 log_error("%s '%s' has disconnected D input\n", ci->type.c_str(ctx), ctx->nameOf(ci));
             CellInfo *drv = d->driver.cell;

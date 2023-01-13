@@ -597,7 +597,7 @@ void XC7Packer::pack_iologic()
     dict<IdString, BelId> iodelay_to_io;
     dict<IdString, XFormRule> iologic_rules;
     iologic_rules[ctx->id("IDDR")].new_type = ctx->id("ILOGICE3_IFF");
-    iologic_rules[ctx->id("IDDR")].port_xform[ctx->id("C")] = ctx->id("CK");
+    iologic_rules[ctx->id("IDDR")].port_multixform[ctx->id("C")] = { ctx->id("CK"), ctx->id("CKB") };
     iologic_rules[ctx->id("IDDR")].port_xform[ctx->id("S")] = ctx->id("SR");
     iologic_rules[ctx->id("IDDR")].port_xform[ctx->id("R")] = ctx->id("SR");
 
@@ -676,7 +676,6 @@ void XC7Packer::pack_iologic()
         } else if (ci->type == ctx->id("IDDR")) {
             fold_inverter(ci, "C");
 
-            std::string iobdelay = str_or_default(ci->params, ctx->id("IOBDELAY"), "NONE");
             BelId io_bel;
 
             NetInfo *d = ci->getPort(ctx->id("D"));
