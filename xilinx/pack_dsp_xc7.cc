@@ -25,12 +25,12 @@ NEXTPNR_NAMESPACE_BEGIN
 void XC7Packer::pack_dsps()
 {
     dict<IdString, XFormRule> dsp_rules;
-    dsp_rules[ctx->id("DSP48E1")].new_type = ctx->id("DSP48E1_DSP48E1");
+    dsp_rules[id_DSP48E1].new_type = id_DSP48E1_DSP48E1;
     generic_xform(dsp_rules, true);
 
     for (auto& cell : ctx->cells) {
         CellInfo *ci = cell.second.get();
-        if (ci->type == ctx->id("DSP48E1_DSP48E1")) {
+        if (ci->type == id_DSP48E1_DSP48E1) {
             // DRC
             NetInfo *clk = ci->getPort(id_CLK);
             if (clk != nullptr && clk->name != ctx->id("$PACKER_GND_NET"))
