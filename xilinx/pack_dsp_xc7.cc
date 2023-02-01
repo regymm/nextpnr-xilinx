@@ -28,7 +28,7 @@ void XC7Packer::pack_dsps()
     dsp_rules[id_DSP48E1].new_type = id_DSP48E1_DSP48E1;
     generic_xform(dsp_rules, true);
 
-    for (auto& cell : ctx->cells) {
+    for (auto &cell : ctx->cells) {
         CellInfo *ci = cell.second.get();
         if (ci->type == id_DSP48E1_DSP48E1) {
             // DRC
