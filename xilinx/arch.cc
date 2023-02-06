@@ -30,6 +30,7 @@
 #include "placer_heap.h"
 #include "router1.h"
 #include "router2.h"
+#include "awooter.h"
 #include "timing.h"
 #include "util.h"
 
@@ -1004,8 +1005,7 @@ bool Arch::route()
 {
     assign_budget(getCtx(), true);
     std::string router = str_or_default(settings, id_router, defaultRouter);
-    if (router != "router2")
-        routeVcc();
+    if (router != "router2") routeVcc();
     routeClock();
     findSourceSinkLocations();
 
@@ -1020,6 +1020,8 @@ bool Arch::route()
         cfg.perf_profile = true;
         router2(getCtx(), cfg);
         result = true;
+    } else if (router == "awooter") {
+        result = router_awooter(getCtx());
     } else {
         log_error("Xilinx architecture does not support router '%s'\n", router.c_str());
     }

@@ -206,6 +206,9 @@ po::options_description CommandHandler::getGeneralOptions()
     general.add_options()("router2-tmg-ripup",
                           "enable experimental timing-driven ripup in router (deprecated; use --tmg-ripup instead)");
 
+    general.add_options()("awooter-pressure-factor", po::value<float>(), "pressure factor for awooter");
+    general.add_options()("awooter-history-factor", po::value<float>(), "history factor for awooter");
+
     general.add_options()("report", po::value<std::string>(),
                           "write timing and utilization report in JSON format to file");
     general.add_options()("detailed-timing-report", "Append detailed net timing data to the JSON report");
