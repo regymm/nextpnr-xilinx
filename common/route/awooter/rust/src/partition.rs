@@ -866,21 +866,34 @@ fn partition_single_arc(
     let end_coord: Coord = arc.get_sink_loc().into();
     let mut current_arc = arc.clone();
     let mut arcs = vec![];
+    println!("==>1");
     for (from_quad, to_quad) in segments.iter().tuple_windows() {
-        let direction = Direction::between(*from_quad, *to_quad).unwrap();
+        let dir = Direction::between(*from_quad, *to_quad);
+        println!("==>2");
+        let direction = match dir {
+            None => panic!("could not match direction from {:#?} to {:#?}", from_quad, to_quad),
+            Some(i) => i
+        };
+        println!("==>3");
         let intersection = start_coord.intersect(&end_coord, direction.axis(), &partition_point);
         let intersection =
             intersection.clamp_in_direction(direction, min_bounds, &partition_point, max_bounds);
+        println!("==>4");
         let pip = pip_selector.find_pip(
             ctx,
             intersection.into(),
             current_arc.get_source_loc(),
             current_arc.net(),
             raw_net,
-        )?;
-        let (before_arc, after_arc) = current_arc.split(ctx, pip);
-        arcs.push((*from_quad, before_arc));
-        current_arc = after_arc;
+        );
+
+        if pip.is_some() {
+            let (before_arc, after_arc) = current_arc.split(ctx, pip.unwrap());
+            arcs.push((*from_quad, before_arc));
+            current_arc = after_arc;
+        } else {
+            println!("pip is not found for arc {}", ctx.name_of(current_arc.get_name()).to_str().unwrap());
+        }
     }
     arcs.push((*segments.last().unwrap(), current_arc));
     Some(arcs)
@@ -1359,14 +1372,13 @@ impl PipSelector {
     ) -> Option<npnr::PipId> {
         // adding a scope to avoid holding the lock for too long
         {
-            let cache = self.pip_selection_cache[pip_index]
-                .get(&net)
-                .unwrap()
-                .read()
-                .unwrap();
+            println!("==>rfp index {} net {} loc {:?} raw_net {:?}", pip_index, net.into_inner(), desired_pip_location, raw_net);
+            let lock = self.pip_selection_cache[pip_index].get(&net);
+            let cache = lock.unwrap().read().unwrap();
             if let Some(pip) = *cache {
                 return Some(pip);
             }
+            println!("==>rfp failed");
         }
 
         let pips = &self.pips[pip_index];

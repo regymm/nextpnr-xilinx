@@ -20,6 +20,7 @@ pub extern "C-unwind" fn npnr_router_awooter(
     pressure: f32,
     history: f32,
 ) -> bool {
+    rayon::ThreadPoolBuilder::new().num_threads(1).build_global().unwrap();
     let ctx: &mut npnr::Context = unsafe { ctx.expect("non-null context").as_mut() };
     route(ctx, pressure, history)
 

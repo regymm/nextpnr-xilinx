@@ -79,6 +79,9 @@ impl Arc {
     pub fn get_sink_loc(&self) -> Loc {
         self.sink_loc
     }
+    pub fn get_name(&self) -> IdString {
+        self.name
+    }
 }
 
 #[derive(Copy, Clone)]
