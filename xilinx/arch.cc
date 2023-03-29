@@ -1369,7 +1369,7 @@ const std::vector<std::string> Arch::availablePlacers = {"sa",
 #endif
 };
 
-const std::string Arch::defaultRouter = "router2";
+const std::string Arch::defaultRouter = "router1";
 const std::vector<std::string> Arch::availableRouters = {"router1", "router2"};
 
 NEXTPNR_NAMESPACE_END
