@@ -1458,15 +1458,19 @@ struct FasmBackend
             }
         };
 
-        // value 1 is equivalent to 2 here, see UG479
-        // also, prjxray only has bits for values 0 and 2
-        auto areg = int_or_default(ci->params, ctx->id("AREG"), 0);
-        write_bit("AREG_" + std::to_string(areg == 1 ? 2 : areg));
+        // value 1 is equivalent to 2, according to UG479
+        // but in real life, Vivado sets AREG_0 if AREG is 1
+        auto areg = int_or_default(ci->params, ctx->id("AREG"), 1);
+        write_bit("AREG_" + std::to_string(areg == 1 ? 0 : areg));
+
         auto ainput = str_or_default(ci->params, ctx->id("A_INPUT"), "DIRECT");
         if (ainput == "CASCADE") write_bit("A_INPUT[0]");
 
-        auto breg = int_or_default(ci->params, ctx->id("BREG"), 0);
-        write_bit("BREG_" + std::to_string(breg == 1 ? 2 : breg));
+        // value 1 is equivalent to 2, according to UG479
+        // but in real life, Vivado sets BREG_0 if BREG is 1
+        auto breg = int_or_default(ci->params, ctx->id("BREG"), 1);
+        write_bit("BREG_" + std::to_string(breg == 1 ? 0 : breg));
+
         auto binput = str_or_default(ci->params, ctx->id("B_INPUT"), "DIRECT");
         if (binput == "CASCADE") write_bit("B_INPUT[0]");
 
