@@ -1459,17 +1459,19 @@ struct FasmBackend
         };
 
         // value 1 is equivalent to 2, according to UG479
-        // but in real life, Vivado sets AREG_0 if AREG is 1
+        // but in real life, Vivado sets AREG_0 is 0,
+        // no bit is 1, and AREG_2 is 2
         auto areg = int_or_default(ci->params, ctx->id("AREG"), 1);
-        write_bit("AREG_" + std::to_string(areg == 1 ? 0 : areg));
+        if (areg == 0 or areg == 2) write_bit("AREG_" + std::to_string(areg));
 
         auto ainput = str_or_default(ci->params, ctx->id("A_INPUT"), "DIRECT");
         if (ainput == "CASCADE") write_bit("A_INPUT[0]");
 
         // value 1 is equivalent to 2, according to UG479
-        // but in real life, Vivado sets BREG_0 if BREG is 1
+        // but in real life, Vivado sets AREG_0 is 0,
+        // no bit is 1, and AREG_2 is 2
         auto breg = int_or_default(ci->params, ctx->id("BREG"), 1);
-        write_bit("BREG_" + std::to_string(breg == 1 ? 0 : breg));
+        if (breg == 0 or breg == 2) write_bit("BREG_" + std::to_string(breg));
 
         auto binput = str_or_default(ci->params, ctx->id("B_INPUT"), "DIRECT");
         if (binput == "CASCADE") write_bit("B_INPUT[0]");
