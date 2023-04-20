@@ -200,6 +200,7 @@ struct USPacker : public XilinxPacker
 
     // DSP
     void pack_dsps();
+
 };
 
 struct XC7Packer : public XilinxPacker
@@ -243,6 +244,9 @@ struct XC7Packer : public XilinxPacker
 
     // DSP
     void pack_dsps();
+
+    // High speed transceivers
+    void pack_gt();
 
 private:
     void walk_dsp(CellInfo *root, CellInfo *ci, int constr_z);

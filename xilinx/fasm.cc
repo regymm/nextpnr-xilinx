@@ -2030,6 +2030,81 @@ struct FasmBackend
         pop(2);
     }
 
+    void write_gtp_pll(CellInfo *ci)
+    {
+        push(get_tile_name(ci->bel.tile));
+
+        if (ci->type == ctx->id("IBUFDS_GTE2")) {
+            Loc siteLoc = ctx->getSiteLocInTile(ci->bel);
+            std::cerr << "cell " << ci->name.str(ctx) << " is at y = " << siteLoc.y << std::endl;
+            push("IBUFDS_GTE2_Y" + std::to_string(siteLoc.y));
+            write_bit("IN_USE");
+            auto clkcm_cfg = bool_or_default(ci->params, ctx->id("CLKCM_CFG"), true);
+            if (!clkcm_cfg) log_warning("%s/%s: According to ug482, CLKCM_CFG should always be on\n",
+                                        ci->hierpath.c_str(ctx), ci->name.c_str(ctx));
+            write_bit("CLKCM_CFG", clkcm_cfg);
+            auto clk_rcv_trst = bool_or_default(ci->params, ctx->id("CLK_RCV_TRST"), true);
+            if (!clk_rcv_trst) log_warning("%s/%s: According to ug482, CLK_RCV_TRST should always be on\n",
+                                           ci->hierpath.c_str(ctx), ci->name.c_str(ctx));
+            write_bit("CLK_RCV_TRST", clk_rcv_trst);
+            pop();
+        } else {
+            push("GTPE2_COMMON");
+            write_bit("IN_USE");
+            write_bit("BOTH_GTREFCLK_USED", bool_or_default(ci->params, ctx->id("_BOTH_GTREFCLK_USED"), false));
+            write_bit("GTREFCLK0_USED", bool_or_default(ci->params, ctx->id("_GTREFCLK0_USED"), false));
+            write_bit("GTREFCLK1_USED", bool_or_default(ci->params, ctx->id("_GTREFCLK1_USED"), false));
+            auto clkswing_cfg = int_or_default(ci->params, ctx->id("CLKSWING_CFG"), 3);
+            if (clkswing_cfg != 3) log_warning("%s/%s: According to ug482, CLK should always be 0b11\n",
+                                               ci->hierpath.c_str(ctx), ci->name.c_str(ctx));
+            write_int_vector("CLKSWING_CFG", clkswing_cfg, 2);
+            write_bit("INV_DRPCLK", bool_or_default(ci->params, ctx->id("IS_DRPCLK_INVERTED")));
+            write_bit("INV_PLL0LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL0LOCKDETCLK_INVERTED")));
+            write_bit("INV_PLL1LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL1LOCKDETCLK_INVERTED")));
+
+            // according to ug482, these attributes contain magic undocumented and reserved wizard values
+            write_int_vector("PLL0_CFG", 0b111110000001111011100, 21);
+            write_int_vector("PLL1_CFG", 0b111110000001111011100, 21);
+            write_int_vector("PLL0_INIT_CFG", 0b11110, 5);
+            write_int_vector("PLL1_INIT_CFG", 0b11110, 5);
+            write_int_vector("PLL0_LOCK_CFG", 0b111101000, 9);
+            write_int_vector("PLL1_LOCK_CFG", 0b111101000, 9);
+
+            auto pll0_refclk_div = int_or_default(ci->params, ctx->id("PLL0_REFCLK_DIV"), 1);
+            if (pll0_refclk_div < 1 || pll0_refclk_div >2)
+                log_error("PLL0_REFCLK_DIV can only be 1 or 2, but is: %d", pll0_refclk_div);
+            write_bit("PLL0_REFCLK_DIV[4]", pll0_refclk_div == 1);
+            auto pll1_refclk_div = int_or_default(ci->params, ctx->id("PLL1_REFCLK_DIV"), 1);
+            if (pll1_refclk_div < 1 || pll1_refclk_div >2)
+                log_error("PLL1_REFCLK_DIV can only be 1 or 2, but is: %d", pll1_refclk_div);
+            write_bit("PLL1_REFCLK_DIV[4]", pll1_refclk_div == 1);
+
+            auto pll0_fbdiv = int_or_default(ci->params, ctx->id("PLL0_FBDIV"), 1);
+            if (pll0_fbdiv < 1 || pll0_fbdiv > 5)
+                log_error("PLL0_FBDIV can only be 1, 2, 3, 4 or 5, but is: %d", pll0_fbdiv);
+            if (pll0_fbdiv == 1) write_bit("PLL0_FBDIV[4]");
+            else write_int_vector("PLL0_FBDIV", pll0_fbdiv - 2, 2);
+            auto pll1_fbdiv = int_or_default(ci->params, ctx->id("PLL1_FBDIV"), 1);
+            if (pll1_fbdiv < 1 || pll1_fbdiv > 5)
+                log_error("PLL1_FBDIV can only be 1, 2, 3, 4 or 5, but is: %d", pll1_fbdiv);
+            if (pll1_fbdiv == 1) write_bit("PLL1_FBDIV[4]");
+            else write_int_vector("PLL1_FBDIV", pll1_fbdiv - 2, 2);
+
+            auto pll0_fbdiv_45 = int_or_default(ci->params, ctx->id("PLL0_FBDIV_45"), 4);
+            if (pll0_fbdiv_45 < 4 || pll0_fbdiv_45 > 5)
+                log_error("PLL0_FBDIV_45 can only be 4 or 5, but is: %d", pll0_fbdiv);
+            write_bit("PLL0_FBDIV_45[0]", pll0_fbdiv_45 == 5);
+            auto pll1_fbdiv_45 = int_or_default(ci->params, ctx->id("PLL1_FBDIV_45"), 4);
+            if (pll1_fbdiv_45 < 4 || pll1_fbdiv_45 > 5)
+                log_error("PLL1_FBDIV_45 can only be 4 or 5, but is: %d", pll1_fbdiv);
+            write_bit("PLL1_FBDIV_45[0]", pll1_fbdiv_45 == 5);
+
+            pop();
+        }
+
+        pop();
+    }
+
     void write_dsp_cell(CellInfo *ci)
     {
         auto tile_name = get_tile_name(ci->bel.tile);
