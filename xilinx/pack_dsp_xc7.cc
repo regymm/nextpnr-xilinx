@@ -23,16 +23,16 @@
 
 NEXTPNR_NAMESPACE_BEGIN
 
-void XC7Packer::walk_dsp(CellInfo *current_cell, int constr_z)
+void XC7Packer::walk_dsp(CellInfo *root, CellInfo *current_cell, int constr_z)
 {
     CellInfo *cascaded_cell = nullptr;
 
     auto check_illegal_fanout = [&] (NetInfo *ni, std::string port) {
-        if (ni->users.size() > 1)
+        if (ni->users.entries() > 1)
             log_error("Port %s connected to net %s has more than one user", port.c_str(), ni->name.c_str(ctx));
 
-        PortRef& user = ni->users.back();
-        if (user.cell->type != ctx->id("DSP48E1_DSP48E1"))
+        PortRef& user = *ni->users.end();
+        if (user.cell->type != id_DSP48E1_DSP48E1)
             log_error("User %s of net %s is not a DSP block, but %s",
                 user.cell->name.c_str(ctx), ni->name.c_str(ctx), user.cell->type.c_str(ctx));
     };
@@ -45,7 +45,7 @@ void XC7Packer::walk_dsp(CellInfo *current_cell, int constr_z)
         if (cout_net == nullptr) continue;
 
         check_illegal_fanout(cout_net, port.first.c_str(ctx));
-        PortRef& user = cout_net->users.back();
+        PortRef& user = *cout_net->users.end();
         CellInfo *cout_cell = user.cell;
         NPNR_ASSERT(cout_cell != nullptr);
 
@@ -57,17 +57,20 @@ void XC7Packer::walk_dsp(CellInfo *current_cell, int constr_z)
     }
 
     if (cascaded_cell != nullptr) {
-        cascaded_cell->constr_parent = current_cell;
-        current_cell->constr_children.push_back(cascaded_cell);
+        auto is_lower_bel = constr_z == BEL_LOWER_DSP;
+
+        cascaded_cell->cluster = root->name;
+        root->constr_children.push_back(cascaded_cell);
         cascaded_cell->constr_x = 0;
         // the connected cell has to be above the current cell,
         // otherwise it cannot be routed, because the cascading ports
         // are only connected to the DSP above
-        cascaded_cell->constr_y = constr_z == BEL_LOWER_DSP ? -5 : 0;
+        auto previous_y = (current_cell == root) ? 0 : current_cell->constr_y;
+        cascaded_cell->constr_y = previous_y + (is_lower_bel ? -5 : 0);
         cascaded_cell->constr_z = constr_z;
         cascaded_cell->constr_abs_z = true;
 
-        walk_dsp(cascaded_cell, constr_z == BEL_LOWER_DSP ? BEL_UPPER_DSP : BEL_LOWER_DSP);
+        walk_dsp(root, cascaded_cell, is_lower_bel ? BEL_UPPER_DSP : BEL_LOWER_DSP);
     }
 }
 
@@ -75,23 +78,23 @@ void XC7Packer::pack_dsps()
 {
     log_info("Packing DSPs..\n");
 
-    std::unordered_map<IdString, XFormRule> dsp_rules;
-    dsp_rules[ctx->id("DSP48E1")].new_type = ctx->id("DSP48E1_DSP48E1");
+    dict<IdString, XFormRule> dsp_rules;
+    dsp_rules[id_DSP48E1].new_type = id_DSP48E1_DSP48E1;
     generic_xform(dsp_rules, true);
 
     std::vector<CellInfo *> all_dsps;
 
-    for (auto cell : sorted(ctx->cells)) {
-        CellInfo *ci = cell.second;
+    for (auto &cell : ctx->cells) {
+        CellInfo *ci = cell.second.get();
 
         auto add_const_pin = [&](PortInfo& port, std::string& pins, std::string& pin_name, std::string net) {
             if (port.net && port.net->name == ctx->id(net)) {
-                disconnect_port(ctx, ci, port.name);
+                ci->disconnectPort(port.name);
                 pins += " " + pin_name;
             }
         };
 
-        if (ci->type == ctx->id("DSP48E1_DSP48E1")) {
+        if (ci->type == id_DSP48E1_DSP48E1) {
             all_dsps.push_back(ci);
             auto gnd_attr = ctx->id("DSP_GND_PINS");
             auto vcc_attr = ctx->id("DSP_VCC_PINS");
@@ -106,7 +109,7 @@ void XC7Packer::pack_dsps()
                     if (port.second.net == nullptr)
                         continue;
                     if (port.second.net->name == ctx->id("$PACKER_GND_NET"))
-                        disconnect_port(ctx, ci, port.first);
+                        ci->disconnectPort(port.first);
                 }
 
                 // prjxray has extra bits for these ports to hardwire them to VCC/GND
@@ -152,7 +155,7 @@ void XC7Packer::pack_dsps()
     for (auto root : dsp_roots) {
         root->constr_abs_z = true;
         root->constr_z = BEL_LOWER_DSP;
-        walk_dsp(root, BEL_UPPER_DSP);
+        walk_dsp(root, root, BEL_UPPER_DSP);
     }
 }
 
