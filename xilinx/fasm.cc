@@ -1272,6 +1272,8 @@ struct FasmBackend
                 pop(2);
             } else if (ci->type == ctx->id("PLLE2_ADV_PLLE2_ADV")) {
                 write_pll(ci);
+            } else if (ci->type == id_MMCME2_ADV_MMCME2_ADV) {
+                write_mmcm(ci);
             }
             blank();
         }
@@ -1556,6 +1558,47 @@ struct FasmBackend
         write_int_vector("LKTABLE[39:0]", 0xB5BE8FA401ULL, 40);
         write_bit("LOCKREG3_RESERVED[0]");
         write_int_vector("TABLE[9:0]", 0x3B4, 10);
+        pop(2);
+    }
+
+void write_mmcm(CellInfo *ci)
+    {
+        push(get_tile_name(ci->bel.tile));
+        push("MMCME2_ADV");
+        write_bit("IN_USE");
+        // FIXME: should be INV not ZINV (XRay error?)
+        write_bit("ZINV_PWRDWN", bool_or_default(ci->params, id_IS_PWRDWN_INVERTED, false));
+        write_bit("ZINV_RST", bool_or_default(ci->params, id_IS_RST_INVERTED, false));
+        write_bit("ZINV_PSEN", bool_or_default(ci->params, id_IS_PSEN_INVERTED, false));
+        write_bit("ZINV_PSINCDEC", bool_or_default(ci->params, id_IS_PSINCDEC_INVERTED, false));
+        write_bit("INV_CLKINSEL", bool_or_default(ci->params, id_IS_CLKINSEL_INVERTED, false));
+        write_pll_clkout("DIVCLK", ci);
+        write_pll_clkout("CLKFBOUT", ci);
+        write_pll_clkout("CLKOUT0", ci);
+        write_pll_clkout("CLKOUT1", ci);
+        write_pll_clkout("CLKOUT2", ci);
+        write_pll_clkout("CLKOUT3", ci);
+        write_pll_clkout("CLKOUT4", ci);
+        write_pll_clkout("CLKOUT5", ci);
+        write_pll_clkout("CLKOUT6", ci);
+
+        std::string comp = str_or_default(ci->params, id_COMPENSATION, "INTERNAL");
+        push("COMPENSATION");
+        if (comp == "INTERNAL") {
+            write_bit("Z_ZHOLD");
+        } else if (comp == "ZHOLD") {
+            write_bit("ZHOLD");
+        } else {
+            NPNR_ASSERT_FALSE("unsupported compensation type");
+        }
+        pop();
+
+        // FIXME: should these be calculated somehow?
+        write_int_vector("FILTREG1_RESERVED[11:0]", 0x8, 12);
+        write_int_vector("LKTABLE[39:0]", 0xffdf4fa401ULL, 40);
+        write_int_vector("POWER_REG_POWER_REG_POWER_REG[15:0]", 0x9900U, 16);
+        write_bit("LOCKREG3_RESERVED[0]");
+        write_int_vector("TABLE[9:0]", 0x304, 10);
         pop(2);
     }
 
