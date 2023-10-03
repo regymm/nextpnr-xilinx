@@ -235,6 +235,9 @@ struct XC7Packer : public XilinxPacker
     void pack_gbs();
     void pack_clocking();
 
+    // CFG
+    void pack_cfg();
+
     // BRAM
     void pack_bram();
 
