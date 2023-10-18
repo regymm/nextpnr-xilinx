@@ -727,22 +727,22 @@ void XC7Packer::pack_iologic()
             std::string ol_site = get_ologic_site(io_bel_str);
 
             PortRef dest_port = *q->users.begin();
-            auto is_tristate = dest_port.port == id_TRI;
+            auto is_tristate = dest_port.port == ctx->id("TRI");
 
-            dict<IdString, XFormRule> oddr_rules;
+            std::unordered_map<IdString, XFormRule> oddr_rules;
             if (boost::contains(io_bel_str, "IOB18"))
-                oddr_rules[id_ODDR].new_type = is_tristate ? id_OLOGICE2_TFF : id_OLOGICE2_OUTFF;
+                oddr_rules[ctx->id("ODDR")].new_type = is_tristate ? ctx->id("OLOGICE2_TFF") : ctx->id("OLOGICE2_OUTFF");
             else
-                oddr_rules[id_ODDR].new_type = is_tristate ? id_OLOGICE3_TFF : id_OLOGICE3_OUTFF;
-            oddr_rules[id_ODDR].port_xform[id_C] = id_CK;
-            oddr_rules[id_ODDR].port_xform[id_S] = id_SR;
-            oddr_rules[id_ODDR].port_xform[id_R] = id_SR;
+                oddr_rules[ctx->id("ODDR")].new_type = is_tristate ? ctx->id("OLOGICE3_TFF") : ctx->id("OLOGICE3_OUTFF");
+            oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("C")] = ctx->id("CK");
+            oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("S")] = ctx->id("SR");
+            oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("R")] = ctx->id("SR");
             xform_cell(oddr_rules, ci);
 
-            ci->attrs[id_BEL] = ol_site + (is_tristate ? "/TFF" : "/OUTFF");
-        } else if (ci->type == id_OSERDESE2) {
-            NetInfo *q = ci->getPort(id_OQ);
-            NetInfo *ofb = ci->getPort(id_OFB);
+            ci->attrs[ctx->id("BEL")] = ol_site + (is_tristate ? "/TFF" : "/OUTFF");
+        } else if (ci->type == ctx->id("OSERDESE2")) {
+            NetInfo *q = get_net_or_empty(ci, ctx->id("OQ"));
+            NetInfo *ofb = get_net_or_empty(ci, ctx->id("OFB"));
             bool q_disconnected = q == nullptr || q->users.empty();
             bool ofb_disconnected = ofb == nullptr || ofb->users.empty();
             if (q_disconnected && ofb_disconnected) {
