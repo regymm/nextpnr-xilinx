@@ -80,9 +80,9 @@ void XC7Packer::pack_plls()
     for (auto cell : sorted(ctx->cells)) {
         CellInfo *ci = cell.second;
         // Preplace PLLs to make use of dedicated/short routing paths
-        if (ci->type == id_MMCM_MMCM_TOP || ci->type == id_PLL_PLL_TOP)
+        if (ci->type == ctx->id("MMCM_MMCM_TOP") || ci->type == ctx->id("PLL_PLL_TOP"))
             try_preplace(ci, ctx->id("CLKIN1"));
-        if (ci->type == id_MMCM_MMCM_TOP) {
+        if (ci->type == ctx->id("MMCM_MMCM_TOP")) {
             // Fixup parameters
             for (int i = 1; i <= 2; i++)
                 set_default(ci, ctx->id("CLKIN" + std::to_string(i) + "_PERIOD"), Property("0.0"));
@@ -108,7 +108,6 @@ void XC7Packer::pack_gbs()
 {
     log_info("Packing global buffers...\n");
     std::unordered_map<IdString, XFormRule> gb_rules;
-    gb_rules[id_BUFGCTRL].new_type = id_BUFGCTRL;
     gb_rules[ctx->id("BUFGCTRL")].new_type = ctx->id("BUFGCTRL");
 
     generic_xform(gb_rules);
@@ -123,7 +122,7 @@ void XC7Packer::pack_gbs()
     // Preplace global buffers to make use of dedicated/short routing
     for (auto cell : sorted(ctx->cells)) {
         CellInfo *ci = cell.second;
-        if (ci->type == id_BUFGCTRL)
+        if (ci->type == ctx->id("BUFGCTRL"))
             try_preplace(ci, ctx->id("I0"));
         if (ci->type == ctx->id("BUFG_BUFG"))
             try_preplace(ci, ctx->id("I"));
@@ -133,15 +132,15 @@ void XC7Packer::pack_gbs()
 void XC7Packer::pack_cfg()
 {
     log_info("Packing cfg...\n");
-    dict<IdString, XFormRule> cfg_rules;
-    cfg_rules[id_BSCANE2].new_type      = id_BSCAN;
-    cfg_rules[id_DCIRESET].new_type     = id_DCIRESET_DCIRESET;
-    cfg_rules[id_DNA_PORT].new_type     = id_DNA_PORT_DNA_PORT;
-    cfg_rules[id_EFUSE_USR].new_type    = id_EFUSE_USR_EFUSE_USR;
-    cfg_rules[id_ICAPE2].new_type       = id_ICAP_ICAP;
-    cfg_rules[id_FRAME_ECCE2].new_type  = id_FRAME_ECC_FRAME_ECC;
-    cfg_rules[id_STARTUPE2].new_type    = id_STARTUP_STARTUP;
-    cfg_rules[id_USR_ACCESSE2].new_type = id_USR_ACCESS_USR_ACCESS;
+    std::unordered_map<IdString, XFormRule> cfg_rules;
+    cfg_rules[ctx->id("BSCANE2")].new_type      = ctx->id("BSCAN");
+    cfg_rules[ctx->id("DCIRESET")].new_type     = ctx->id("DCIRESET_DCIRESET");
+    cfg_rules[ctx->id("DNA_PORT")].new_type     = ctx->id("DNA_PORT_DNA_PORT");
+    cfg_rules[ctx->id("EFUSE_USR")].new_type    = ctx->id("EFUSE_USR_EFUSE_USR");
+    cfg_rules[ctx->id("ICAPE2")].new_type       = ctx->id("ICAP_ICAP");
+    cfg_rules[ctx->id("FRAME_ECCE2")].new_type  = ctx->id("FRAME_ECC_FRAME_ECC");
+    cfg_rules[ctx->id("STARTUPE2")].new_type    = ctx->id("STARTUP_STARTUP");
+    cfg_rules[ctx->id("USR_ACCESSE2")].new_type = ctx->id("USR_ACCESS_USR_ACCESS");
 
     generic_xform(cfg_rules);
 }
