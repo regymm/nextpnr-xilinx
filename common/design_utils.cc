@@ -21,6 +21,7 @@
 #include "design_utils.h"
 #include <algorithm>
 #include <map>
+#include <boost/regex.hpp>
 #include "log.h"
 #include "util.h"
 NEXTPNR_NAMESPACE_BEGIN
@@ -73,7 +74,9 @@ void print_utilisation(const Context *ctx)
     for (auto type : available_types) {
         IdString type_id = type.first;
         int used_bels = get_or_default(used_types, type.first, 0);
-        log_info("\t%20s: %5d/%5d %5d%%\n", type_id.c_str(ctx), used_bels, type.second, 100 * used_bels / type.second);
+        boost::regex expr {"^([A-Z0-9_]*)_\\1$"};
+        std::string type_str = boost::regex_replace(type_id.str(ctx), expr, "\\1");
+        log_info("\t%20s: %5d/%5d %5d%%\n", type_str.c_str(), used_bels, type.second, 100 * used_bels / type.second);
     }
     log_break();
 }
