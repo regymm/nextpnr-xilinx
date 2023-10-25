@@ -1272,7 +1272,7 @@ struct FasmBackend
                 pop(2);
             } else if (ci->type == ctx->id("PLLE2_ADV_PLLE2_ADV")) {
                 write_pll(ci);
-            } else if (ci->type == id_MMCME2_ADV_MMCME2_ADV) {
+            } else if (ci->type == ctx->id("MMCME2_ADV_MMCME2_ADV")) {
                 write_mmcm(ci);
             }
             blank();
