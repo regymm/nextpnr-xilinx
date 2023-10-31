@@ -80,9 +80,9 @@ void XC7Packer::pack_plls()
     for (auto cell : sorted(ctx->cells)) {
         CellInfo *ci = cell.second;
         // Preplace PLLs to make use of dedicated/short routing paths
-        if (ci->type == ctx->id("MMCM_MMCM_TOP") || ci->type == ctx->id("PLL_PLL_TOP"))
+        if (ci->type == ctx->id("MMCME2_ADV_MMCME2_ADV") || ci->type == ctx->id("PLLE2_ADV_PLLE2_ADV"))
             try_preplace(ci, ctx->id("CLKIN1"));
-        if (ci->type == ctx->id("MMCM_MMCM_TOP")) {
+        if (ci->type == ctx->id("MMCME2_ADV_MMCME2_ADV")) {
             // Fixup parameters
             for (int i = 1; i <= 2; i++)
                 set_default(ci, ctx->id("CLKIN" + std::to_string(i) + "_PERIOD"), Property("0.0"));
