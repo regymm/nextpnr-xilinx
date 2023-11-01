@@ -500,7 +500,25 @@ void get_tied_pins(Context *ctx, std::unordered_map<IdString, std::unordered_map
     for (int i = 0; i < 4; i++)
         tied_pins[ctx->id("IOBUFDSE3")][ctx->id("OSC[" + std::to_string(i) + "]")] = false;
 
-    // MMCM
+    // MMCME2
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("CLKFBIN")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("CLKIN1")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("CLKIN2")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("CLKINSEL")] = true;
+    for (int i = 0; i < 7; i++)
+        tied_pins[ctx->id("MMCME2_ADV")][ctx->id("DADDR[" + std::to_string(i) + "]")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("DCLK")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("DEN")] = false;
+    for (int i = 0; i < 16; i++)
+        tied_pins[ctx->id("MMCME2_ADV")][ctx->id("DI[" + std::to_string(i) + "]")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("DWE")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("PSCLK")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("PSEN")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("PSINCDEC")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("PWRDWN")] = false;
+    tied_pins[ctx->id("MMCME2_ADV")][ctx->id("RST")] = false;
+
+    // MMCME4
     tied_pins[ctx->id("MMCME4_ADV")][ctx->id("CDDCREQ")] = false;
     tied_pins[ctx->id("MMCME4_ADV")][ctx->id("CLKFBIN")] = false;
     tied_pins[ctx->id("MMCME4_ADV")][ctx->id("CLKIN1")] = false;
