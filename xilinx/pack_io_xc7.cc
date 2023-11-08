@@ -711,6 +711,9 @@ void XC7Packer::pack_iologic()
         }
     }
 
+    std::unordered_set<BelId> used_oserdes_bels;
+    std::unordered_set<CellInfo *> unconstrained_oserdes;
+
     for (auto cell : sorted(ctx->cells)) {
         CellInfo *ci = cell.second;
         if (ci->type == ctx->id("ODDR")) {
@@ -750,12 +753,17 @@ void XC7Packer::pack_iologic()
             }
             BelId io_bel;
             CellInfo *ob = !q_disconnected ? find_p_outbuf(q) : find_p_outbuf(ofb);
-            if (ob != nullptr)
+            if (ob != nullptr) {
                 io_bel = ctx->getBelByName(ctx->id(ob->attrs.at(ctx->id("BEL")).as_string()));
-            else
+                std::string ol_site = get_ologic_site(ctx->getBelName(io_bel).str(ctx));
+                auto bel_name = ol_site + "/OSERDESE2";
+                ci->attrs[ctx->id("BEL")] = bel_name;
+                used_oserdes_bels.insert(ctx->getBelByName(ctx->id(bel_name)));
+            } else if (ofb->users.size() == 1 && ofb->users.at(0).cell->type == ctx->id("ISERDESE2")) {
+                unconstrained_oserdes.insert(ci);
+            } else {
                 log_error("%s '%s' has illegal fanout on OQ or OFB output\n", ci->type.c_str(ctx), ctx->nameOf(ci));
-            std::string ol_site = get_ologic_site(ctx->getBelName(io_bel).str(ctx));
-            ci->attrs[ctx->id("BEL")] = ol_site + "/OSERDESE2";
+            }
         } else if (ci->type == ctx->id("IDDR")) {
             fold_inverter(ci, "C");
 
@@ -779,38 +787,85 @@ void XC7Packer::pack_iologic()
             fold_inverter(ci, "CLKB");
             fold_inverter(ci, "OCLKB");
 
+            bool ofb_used = str_or_default(ci->params, ctx->id("OFB_USED"), "FALSE") == "TRUE";
             std::string iobdelay = str_or_default(ci->params, ctx->id("IOBDELAY"), "NONE");
-            BelId io_bel;
 
-            if (iobdelay == "IFD") {
-                NetInfo *d = get_net_or_empty(ci, ctx->id("DDLY"));
+            if (ofb_used) {
+                BelId bel;
+                NetInfo *d = get_net_or_empty(ci, ctx->id("OFB"));
                 if (d == nullptr || d->driver.cell == nullptr)
-                    log_error("%s '%s' has disconnected DDLY input\n", ci->type.c_str(ctx), ctx->nameOf(ci));
+                    log_error("%s '%s' has disconnected OFB input\n", ci->type.c_str(ctx), ctx->nameOf(ci));
                 CellInfo *drv = d->driver.cell;
-                if (boost::contains(drv->type.str(ctx), "IDELAYE2") && d->driver.port == ctx->id("DATAOUT"))
-                    io_bel = iodelay_to_io.at(drv->name);
-                else
-                    log_error("%s '%s' has DDLY input connected to illegal cell type %s\n", ci->type.c_str(ctx),
-                              ctx->nameOf(ci), drv->type.c_str(ctx));
-            } else if (iobdelay == "NONE") {
-                NetInfo *d = get_net_or_empty(ci, ctx->id("D"));
-                if (d == nullptr || d->driver.cell == nullptr)
-                    log_error("%s '%s' has disconnected D input\n", ci->type.c_str(ctx), ctx->nameOf(ci));
-                CellInfo *drv = d->driver.cell;
-                if (   boost::contains(drv->type.str(ctx), "INBUF_EN")
-                    || boost::contains(drv->type.str(ctx), "INBUF_DCIEN"))
-                    io_bel = ctx->getBelByName(ctx->id(drv->attrs.at(ctx->id("BEL")).as_string()));
-                else
-                    log_error("%s '%s' has D input connected to illegal cell type %s\n", ci->type.c_str(ctx),
-                              ctx->nameOf(ci), drv->type.c_str(ctx));
+                if (boost::contains(drv->type.str(ctx), "OSERDESE2") && d->driver.port == ctx->id("OFB")) {
+                    // We place this later, when we place the OSERDESE2, see below
+                } else
+                    log_error("%s '%s' has OFB input connected to illegal cell type %s\n", ci->type.c_str(ctx),
+                            ctx->nameOf(ci), drv->type.c_str(ctx));
             } else {
-                log_error("%s '%s' has unsupported IOBDELAY value '%s'\n", ci->type.c_str(ctx), ctx->nameOf(ci),
-                          iobdelay.c_str());
-            }
+                BelId io_bel;
+                if (iobdelay == "IFD") {
+                    NetInfo *d = get_net_or_empty(ci, ctx->id("DDLY"));
+                    if (d == nullptr || d->driver.cell == nullptr)
+                        log_error("%s '%s' has disconnected DDLY input\n", ci->type.c_str(ctx), ctx->nameOf(ci));
+                    CellInfo *drv = d->driver.cell;
+                    if (boost::contains(drv->type.str(ctx), "IDELAYE2") && d->driver.port == ctx->id("DATAOUT"))
+                        io_bel = iodelay_to_io.at(drv->name);
+                    else
+                        log_error("%s '%s' has DDLY input connected to illegal cell type %s\n", ci->type.c_str(ctx),
+                                ctx->nameOf(ci), drv->type.c_str(ctx));
+                } else if (iobdelay == "NONE") {
+                    NetInfo *d = get_net_or_empty(ci, ctx->id("D"));
+                    if (d == nullptr || d->driver.cell == nullptr)
+                        log_error("%s '%s' has disconnected D input\n", ci->type.c_str(ctx), ctx->nameOf(ci));
+                    CellInfo *drv = d->driver.cell;
+                    if (   boost::contains(drv->type.str(ctx), "INBUF_EN")
+                        || boost::contains(drv->type.str(ctx), "INBUF_DCIEN"))
+                        io_bel = ctx->getBelByName(ctx->id(drv->attrs.at(ctx->id("BEL")).as_string()));
+                    else
+                        log_error("%s '%s' has D input connected to illegal cell type %s\n", ci->type.c_str(ctx),
+                                ctx->nameOf(ci), drv->type.c_str(ctx));
+                } else {
+                    log_error("%s '%s' has unsupported IOBDELAY value '%s'\n", ci->type.c_str(ctx), ctx->nameOf(ci),
+                            iobdelay.c_str());
+                }
 
-            std::string iol_site = get_ilogic_site(ctx->getBelName(io_bel).str(ctx));
-            ci->attrs[ctx->id("BEL")] = iol_site + "/ISERDESE2";
+                std::string iol_site = get_ilogic_site(ctx->getBelName(io_bel).str(ctx));
+                ci->attrs[ctx->id("BEL")] = iol_site + "/ISERDESE2";
+            }
         }
+    }
+
+    // place OSERDESE2 which are not connected to an output, but to another ISERDESE2 via OFB
+    std::queue<BelId> available_oserdes_bels;
+    IdString oserdes_id = ctx->id("OSERDESE2_OSERDESE2");
+    for (auto bel : ctx->getBels()) {
+        if (ctx->getBelType(bel) != oserdes_id)
+            continue;
+        if (used_oserdes_bels.count(bel))
+            continue;
+        available_oserdes_bels.push(bel);
+    }
+
+    int avail_count = int(available_oserdes_bels.size());
+    int unconstr_oserdes = int(unconstrained_oserdes.size());
+    for (auto ci : unconstrained_oserdes) {
+        if (available_oserdes_bels.empty()) {
+            log_error("IO placer ran out of available OSERDESE2 (%d available, %d unconstrained)\n", avail_count,
+                unconstr_oserdes);
+        }
+        auto oserdes_bel_name = std::string(ctx->nameOfBel(available_oserdes_bels.front()));
+        ci->attrs[ctx->id("BEL")] = oserdes_bel_name;
+
+        NetInfo *d = get_net_or_empty(ci, ctx->id("OFB"));
+        NPNR_ASSERT_MSG(d != nullptr, "Only OSERDESE2 with connected OFB should be unconstrained at this point");
+        NPNR_ASSERT_MSG(d->users.size() == 1, "OSERDESE2 OFB can only be connected to one cell");
+        auto iserdes = d->users.at(0).cell;
+        std::string iserdes_bel_name = oserdes_bel_name;
+        boost::replace_all(iserdes_bel_name, "OLOGIC", "ILOGIC");
+        boost::replace_all(iserdes_bel_name, "OSERDES", "ISERDES");
+        NPNR_ASSERT_MSG(iserdes->attrs.count(ctx->id("BEL"))  == 0, "ISERDESE2 which is connected to OFB of OSERDESE2 already placed");
+        iserdes->attrs[ctx->id("BEL")] = iserdes_bel_name;
+        available_oserdes_bels.pop();
     }
 
     flush_cells();

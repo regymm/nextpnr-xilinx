@@ -1103,6 +1103,7 @@ struct FasmBackend
 
             push("ISERDES");
             write_bit("IN_USE");
+            write_bit("OFB_USED", str_or_default(ci->params, ctx->id("OFB_USED"), "FALSE") == "TRUE");
             int width = int_or_default(ci->params, ctx->id("DATA_WIDTH"), 8);
             std::string mode = str_or_default(ci->params, ctx->id("INTERFACE_TYPE"), "NETWORKING");
             std::string rate = str_or_default(ci->params, ctx->id("DATA_RATE"), "DDR");
