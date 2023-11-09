@@ -30,8 +30,10 @@ void XC7Packer::walk_dsp(CellInfo *root, CellInfo *current_cell, int constr_z)
     auto check_illegal_fanout = [&] (NetInfo *ni, std::string port) {
         if (ni->users.size() > 1)
             log_error("Port %s connected to net %s has more than one user", port.c_str(), ni->name.c_str(ctx));
+        if (ni->users.size() == 0)
+            log_error("Port %s has no connections", port.c_str());
 
-        PortRef& user = ni->users.back();
+        PortRef& user = *ni->users.begin();
         if (user.cell->type != ctx->id("DSP48E1_DSP48E1"))
             log_error("User %s of net %s is not a DSP block, but %s",
                 user.cell->name.c_str(ctx), ni->name.c_str(ctx), user.cell->type.c_str(ctx));
