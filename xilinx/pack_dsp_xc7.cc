@@ -31,7 +31,8 @@ void XC7Packer::walk_dsp(CellInfo *root, CellInfo *current_cell, int constr_z)
         if (ni->users.entries() > 1)
             log_error("Port %s connected to net %s has more than one user", port.c_str(), ni->name.c_str(ctx));
 
-        PortRef& user = *ni->users.end();
+        // since we made sure, we have only one user, we take it
+        PortRef& user = *ni->users.begin();
         if (user.cell->type != id_DSP48E1_DSP48E1)
             log_error("User %s of net %s is not a DSP block, but %s",
                 user.cell->name.c_str(ctx), ni->name.c_str(ctx), user.cell->type.c_str(ctx));
