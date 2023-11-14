@@ -1056,11 +1056,11 @@ struct FasmBackend
 
             push("OSERDES");
             write_bit("IN_USE");
-            std::string type = str_or_default(ci->params, ctx->id("DATA_RATE_OQ"), "BUF");
-            write_bit(std::string("DATA_RATE_OQ.") + ((get_net_or_empty(ci, ctx->id("OQ")) != nullptr) ? type : "BUF"));
+            std::string type = str_or_default(ci->params, ctx->id("DATA_RATE_OQ"), "DDR");
+            write_bit(std::string("DATA_RATE_OQ.") + ((get_net_or_empty(ci, ctx->id("OQ")) != nullptr) ? type : "DDR"));
             write_bit(std::string("DATA_RATE_TQ.") +
                       ((get_net_or_empty(ci, ctx->id("TQ")) != nullptr)
-                               ? str_or_default(ci->params, ctx->id("DATA_RATE_TQ"), "BUF")
+                               ? str_or_default(ci->params, ctx->id("DATA_RATE_TQ"), "DDR")
                                : "BUF"));
             int width = int_or_default(ci->params, ctx->id("DATA_WIDTH"), 8);
 #if 0
