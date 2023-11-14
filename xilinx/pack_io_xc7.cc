@@ -744,6 +744,17 @@ void XC7Packer::pack_iologic()
 
             ci->attrs[ctx->id("BEL")] = ol_site + (is_tristate ? "/TFF" : "/OUTFF");
         } else if (ci->type == ctx->id("OSERDESE2")) {
+            // according to ug953 they should be left unconnected or connected to ground
+            // when not in slave mode, which is the same, since there are no wire routes to GND
+            NetInfo *shiftin1 = get_net_or_empty(ci, ctx->id("SHIFTIN1"));
+            if (shiftin1->name == ctx->id("$PACKER_GND_NET")) disconnect_port(ctx, ci, ctx->id("SHIFTIN1"));
+            NetInfo *shiftin2 = get_net_or_empty(ci, ctx->id("SHIFTIN2"));
+            if (shiftin2->name == ctx->id("$PACKER_GND_NET")) disconnect_port(ctx, ci, ctx->id("SHIFTIN2"));
+
+            // If this is tied to GND it's just unused. This does not have a route to GND anyway.
+            NetInfo *tbytein = get_net_or_empty(ci, ctx->id("TBYTEIN"));
+            if (tbytein->name == ctx->id("$PACKER_GND_NET")) disconnect_port(ctx, ci, ctx->id("TBYTEIN"));
+
             NetInfo *q = get_net_or_empty(ci, ctx->id("OQ"));
             NetInfo *ofb = get_net_or_empty(ci, ctx->id("OFB"));
             bool q_disconnected = q == nullptr || q->users.empty();
