@@ -446,7 +446,7 @@ void XC7Packer::check_valid_pad(CellInfo *ci, std::string type)
     auto iostandard_id = ctx->id("IOSTANDARD");
     auto iostandard_attr = ci->attrs.find(iostandard_id);
     if (iostandard_attr == ci->attrs.end())
-        log_error("port %s has no IOSTANDARD property", ci->name.c_str(ctx));
+        log_error("port %s of type %s has no IOSTANDARD property", ci->name.c_str(ctx), type.c_str());
 
     auto iostandard = iostandard_attr->second.as_string();
     if (!boost::starts_with(iostandard, "LVTTL") &&
