@@ -310,10 +310,14 @@ void XC7Packer::pack_io()
             log_info("    Constraining '%s' to site '%s'\n", pad->name.c_str(ctx), site.c_str());
             std::string tile = get_tilename_by_sitename(ctx, site);
             log_info("    Tile '%s'\n", tile.c_str());
-            if (boost::starts_with(tile, "RIOB18_"))
-                pad->attrs[ctx->id("BEL")] = std::string(site + "/IOB18/PAD");
-            else
-                pad->attrs[ctx->id("BEL")] = std::string(site + "/IOB33/PAD");
+            if (boost::starts_with(tile, "GTP_COMMON")) {
+                pad->attrs[id_BEL] = std::string(site + "/PAD");
+            } else {
+                if (boost::starts_with(tile, "RIOB18_"))
+                    pad->attrs[id_BEL] = std::string(site + "/IOB18/PAD");
+                else
+                    pad->attrs[id_BEL] = std::string(site + "/IOB33/PAD");
+            }
         }
         if (pad->attrs.count(ctx->id("BEL"))) {
             used_io_bels.insert(ctx->getBelByName(ctx->id(pad->attrs.at(ctx->id("BEL")).as_string())));
@@ -397,7 +401,9 @@ void XC7Packer::pack_io()
         CellInfo *ci = cell.second;
         if (!ci->attrs.count(ctx->id("BEL")))
             continue;
-        std::string belname = ci->attrs[ctx->id("BEL")].c_str();
+        if (ci->type == id_PAD)
+            continue;
+        std::string belname = ci->attrs[id_BEL].c_str();
         size_t pos = belname.find("/");
         if (belname.substr(pos+1, 5) == "IOB18")
             rules = hpiobuf_rules;

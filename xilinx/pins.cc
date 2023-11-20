@@ -695,6 +695,7 @@ void get_top_level_pins(Context *ctx, std::unordered_map<IdString, std::unordere
     toplevel_pins[ctx->id("IBUFDS_DIFF_OUT")] = {ctx->id("I"), ctx->id("IB")};
     toplevel_pins[ctx->id("IBUFDS_DIFF_OUT_IBUFDISABLE")] = {ctx->id("I"), ctx->id("IB")};
     toplevel_pins[ctx->id("IBUFDS_DIFF_OUT_INTERMDISABLE")] = {ctx->id("I"), ctx->id("IB")};
+    toplevel_pins[ctx->id("IBUFDS_GTE2")] = {ctx->id("I"), ctx->id("IB")};
     toplevel_pins[ctx->id("IBUFDS_GTE3")] = {ctx->id("I"), ctx->id("IB")};
     toplevel_pins[ctx->id("IBUFDS_GTE4")] = {ctx->id("I"), ctx->id("IB")};
     toplevel_pins[ctx->id("IBUFDS_INTERMDISABLE")] = {ctx->id("I"), ctx->id("IB")};
@@ -716,6 +717,7 @@ void get_top_level_pins(Context *ctx, std::unordered_map<IdString, std::unordere
     toplevel_pins[ctx->id("OBUFT")] = {ctx->id("O")};
 
     toplevel_pins[ctx->id("OBUFDS")] = {ctx->id("O"), ctx->id("OB")};
+    toplevel_pins[ctx->id("OBUFDS_GTE2")] = {ctx->id("O"), ctx->id("OB")};
     toplevel_pins[ctx->id("OBUFDS_GTE3")] = {ctx->id("O"), ctx->id("OB")};
     toplevel_pins[ctx->id("OBUFDS_GTE3_ADV")] = {ctx->id("O"), ctx->id("OB")};
     toplevel_pins[ctx->id("OBUFDS_GTE4")] = {ctx->id("O"), ctx->id("OB")};

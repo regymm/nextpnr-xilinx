@@ -59,8 +59,11 @@ void XC7Packer::prepare_clocking()
             tie_port(ci, "S1", false, true);
             tie_port(ci, "IGNORE0", true, true);
         }
-        if (ci->attrs.count(ctx->id("BEL")))
-            used_bels.insert(ctx->getBelByName(ctx->id(ci->attrs.at(ctx->id("BEL")).as_string())));
+        if (ci->attrs.count(ctx->id("BEL"))) {
+            auto bel_str = ci->attrs.at(ctx->id("BEL")).as_string();
+            std::cerr << "getBelByName: " << bel_str << std::endl;
+            used_bels.insert(ctx->getBelByName(ctx->id(bel_str)));
+        }
     }
 }
 

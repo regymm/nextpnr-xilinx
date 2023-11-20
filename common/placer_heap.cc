@@ -816,6 +816,8 @@ class HeAPPlacer
             BelId bestBel;
             int best_inp_len = std::numeric_limits<int>::max();
 
+            std::cerr << "==> placing cell " << ci->name.str(ctx) << std::endl;
+
             total_iters++;
             total_iters_noreset++;
             if (total_iters > int(solve_cells.size())) {
@@ -949,6 +951,7 @@ class HeAPPlacer
                                 Loc loc = ctx->getBelLocation(sz);
                                 cell_locs[ci->name].x = loc.x;
                                 cell_locs[ci->name].y = loc.y;
+                                std::cerr << "==> placed w/o constraints! \n";
                                 placed = true;
                                 break;
                             }
@@ -1003,7 +1006,9 @@ class HeAPPlacer
 
                         for (auto &sm : swaps_made) {
                             if (!ctx->isBelLocationValid(sm.first))
+                                { //std::cerr << "==> fail: move is illegal \n";
                                 goto fail;
+                                }
                         }
 
                         if (false) {
@@ -1026,6 +1031,7 @@ class HeAPPlacer
                                 remaining.emplace(chain_size[swap.second->name], swap.second->name);
                         }
 
+                        std::cerr << "==> placed with constraints! \n";
                         placed = true;
                         break;
                     }

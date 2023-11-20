@@ -762,6 +762,8 @@ struct FasmBackend
         std::string tile = get_tile_name(pad->bel.tile);
         push(tile);
 
+        std::cerr << "==> write io config for " << pad->name.str(ctx) << " of tile " << tile << " net " << pad_net->name.str(ctx) << std::endl;
+
         bool is_riob18   = boost::starts_with(tile, "RIOB18_");
         bool is_sing     = boost::contains(tile, "_SING_");
         bool is_top_sing = pad->bel.tile < ctx->getHclkForIob(pad->bel);
@@ -1144,7 +1146,8 @@ struct FasmBackend
         for (auto cell : sorted(ctx->cells)) {
             CellInfo *ci = cell.second;
             if (ci->type == ctx->id("PAD")) {
-                write_io_config(ci);
+                std::string tile = get_tile_name(ci->bel.tile);
+                if (!boost::starts_with(tile, "GTP_")) write_io_config(ci);
                 blank();
             } else if (ci->type == ctx->id("ILOGICE3_IFF") ||
                        ci->type == ctx->id("OLOGICE2_OUTFF") ||
@@ -1274,6 +1277,8 @@ struct FasmBackend
                 write_pll(ci);
             } else if (ci->type == ctx->id("MMCME2_ADV_MMCME2_ADV")) {
                 write_mmcm(ci);
+            } else if (ci->type == id_GTPE2_COMMON || ci->type == id_IBUFDS_GTE2) {
+                write_gtp_pll(ci);
             }
             blank();
         }
@@ -2057,7 +2062,7 @@ struct FasmBackend
             auto clkswing_cfg = int_or_default(ci->params, ctx->id("CLKSWING_CFG"), 3);
             if (clkswing_cfg != 3) log_warning("%s/%s: According to ug482, CLK should always be 0b11\n",
                                                ci->hierpath.c_str(ctx), ci->name.c_str(ctx));
-            write_int_vector("CLKSWING_CFG", clkswing_cfg, 2);
+            write_int_vector("CLKSWING_CFG[1:0]", clkswing_cfg, 2);
             write_bit("INV_DRPCLK", bool_or_default(ci->params, ctx->id("IS_DRPCLK_INVERTED")));
             write_bit("INV_PLL0LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL0LOCKDETCLK_INVERTED")));
             write_bit("INV_PLL1LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL1LOCKDETCLK_INVERTED")));
@@ -2083,12 +2088,12 @@ struct FasmBackend
             if (pll0_fbdiv < 1 || pll0_fbdiv > 5)
                 log_error("PLL0_FBDIV can only be 1, 2, 3, 4 or 5, but is: %d", pll0_fbdiv);
             if (pll0_fbdiv == 1) write_bit("PLL0_FBDIV[4]");
-            else write_int_vector("PLL0_FBDIV", pll0_fbdiv - 2, 2);
+            else write_int_vector("PLL0_FBDIV[1:0]", pll0_fbdiv - 2, 2);
             auto pll1_fbdiv = int_or_default(ci->params, ctx->id("PLL1_FBDIV"), 1);
             if (pll1_fbdiv < 1 || pll1_fbdiv > 5)
                 log_error("PLL1_FBDIV can only be 1, 2, 3, 4 or 5, but is: %d", pll1_fbdiv);
             if (pll1_fbdiv == 1) write_bit("PLL1_FBDIV[4]");
-            else write_int_vector("PLL1_FBDIV", pll1_fbdiv - 2, 2);
+            else write_int_vector("PLL1_FBDIV[1:0]", pll1_fbdiv - 2, 2);
 
             auto pll0_fbdiv_45 = int_or_default(ci->params, ctx->id("PLL0_FBDIV_45"), 4);
             if (pll0_fbdiv_45 < 4 || pll0_fbdiv_45 > 5)
