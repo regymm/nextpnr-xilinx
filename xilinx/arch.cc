@@ -322,12 +322,17 @@ PipId Arch::getPipByName(IdString name) const
 IdString Arch::getPipName(PipId pip) const
 {
     NPNR_ASSERT(pip != PipId());
-    if (locInfo(pip).pip_data[pip.index].site != -1 && locInfo(pip).pip_data[pip.index].flags == PIP_SITE_INTERNAL &&
-        locInfo(pip).pip_data[pip.index].bel != -1) {
+    auto loc_info  = locInfo(pip);
+    auto pip_data  = loc_info.pip_data[pip.index];
+    auto tile_inst = chip_info->tile_insts[pip.tile];
+    auto site      = pip_data.site;
+    auto bel       = pip_data.bel;
+
+    if (site != -1 && pip_data.flags == PIP_SITE_INTERNAL && bel != -1) {
         return id(std::string("SITEPIP/") +
-                  chip_info->tile_insts[pip.tile].site_insts[locInfo(pip).pip_data[pip.index].site].name.get() +
-                  std::string("/") + IdString(locInfo(pip).pip_data[pip.index].bel).str(this) + "/" +
-                  IdString(locInfo(pip).wire_data[locInfo(pip).pip_data[pip.index].src_index].name).str(this));
+                    tile_inst.site_insts[site].name.get() +
+                    std::string("/") + IdString(bel).str(this) + "/" +
+                    IdString(loc_info.wire_data[pip_data.src_index].name).str(this));
     } else {
         return id(std::string(chip_info->tile_insts[pip.tile].name.get()) + "/" +
                   std::to_string(locInfo(pip).pip_data[pip.index].src_index) + "." +
