@@ -886,69 +886,91 @@ void XC7Packer::pack_iologic()
 
 void XC7Packer::pack_idelayctrl()
 {
-    CellInfo *idelayctrl = nullptr;
+    auto get_iodelay_group_number = [&](CellInfo * ci) {
+        int64_t group_number = -1;
+        auto iodelay_group = ci->attrs.find(ctx->id("IODELAY_GROUP"));
+        if (iodelay_group != ci->attrs.end()) {
+            group_number = (*iodelay_group).second.as_int64();
+        }
+        return group_number;
+    };
+
+    std::unordered_map<int64_t, CellInfo *> idelayctrl_map;
     for (auto cell : sorted(ctx->cells)) {
         CellInfo *ci = cell.second;
         if (ci->type == ctx->id("IDELAYCTRL")) {
-            if (idelayctrl != nullptr)
-                log_error("Found more than one IDELAYCTRL cell!\n");
-            idelayctrl = ci;
+            int64_t group_number = get_iodelay_group_number(ci);
+            if (0 < idelayctrl_map.count(group_number)) {
+                if (group_number == -1)
+                    log_error("Found more than one IDELAYCTRL cell for the default IODELAY_GROUP!\n");
+                else
+                    log_error("Found more than one IDELAYCTRL cell for the IODELAY_GROUP with number %ld!\n", group_number);
+            }
+            idelayctrl_map[group_number] = ci;
         }
     }
-    if (idelayctrl == nullptr)
+    if (idelayctrl_map.empty())
         return;
-    std::set<std::string> ioctrl_sites;
-    for (auto cell : sorted(ctx->cells)) {
-        CellInfo *ci = cell.second;
-        if (ci->type == ctx->id("IDELAYE2_IDELAYE2") || ci->type == ctx->id("ODELAYE2_ODELAYE2")) {
-            if (!ci->attrs.count(ctx->id("BEL")))
-                continue;
-            ioctrl_sites.insert(get_ioctrl_site(ci->attrs.at(ctx->id("X_IO_BEL")).as_string()));
+    for (auto group : idelayctrl_map)
+    {
+        auto group_number = group.first;
+        auto idelayctrl = group.second;
+        auto group_name = group_number == -1 ? "default" : std::to_string(group_number);
+        std::set<std::string> ioctrl_sites;
+        for (auto cell : sorted(ctx->cells)) {
+            CellInfo *ci = cell.second;
+            if (ci->type == ctx->id("IDELAYE2_IDELAYE2") || ci->type == ctx->id("ODELAYE2_ODELAYE2")) {
+                auto grp_num = get_iodelay_group_number(ci);
+                if (!ci->attrs.count(ctx->id("BEL")) || grp_num != group_number)
+                    continue;
+                ioctrl_sites.insert(get_ioctrl_site(ci->attrs.at(ctx->id("X_IO_BEL")).as_string()));
+            }
         }
-    }
-    if (ioctrl_sites.empty())
-        log_error("Found IDELAYCTRL but no I/ODELAYs\n");
-    NetInfo *rdy = get_net_or_empty(idelayctrl, ctx->id("RDY"));
-    disconnect_port(ctx, idelayctrl, ctx->id("RDY"));
-    std::vector<NetInfo *> dup_rdys;
-    int i = 0;
-    for (auto site : ioctrl_sites) {
-        auto dup_idc = create_cell(ctx, ctx->id("IDELAYCTRL"),
-                                   int_name(idelayctrl->name, "CTRL_DUP_" + std::to_string(i), false));
-        connect_port(ctx, get_net_or_empty(idelayctrl, ctx->id("REFCLK")), dup_idc.get(), ctx->id("REFCLK"));
-        connect_port(ctx, get_net_or_empty(idelayctrl, ctx->id("RST")), dup_idc.get(), ctx->id("RST"));
+        if (ioctrl_sites.empty())
+            log_error("Found IDELAYCTRL but no I/ODELAYs in group %s\n", group_name.c_str());
+        NetInfo *rdy = get_net_or_empty(idelayctrl, ctx->id("RDY"));
+        disconnect_port(ctx, idelayctrl, ctx->id("RDY"));
+        std::vector<NetInfo *> dup_rdys;
+        int i = 0;
+        for (auto site : ioctrl_sites) {
+            auto dup_idc = create_cell(ctx, ctx->id("IDELAYCTRL"),
+                                    int_name(idelayctrl->name, "CTRL_DUP_" + std::to_string(i), false));
+            connect_port(ctx, get_net_or_empty(idelayctrl, ctx->id("REFCLK")), dup_idc.get(), ctx->id("REFCLK"));
+            connect_port(ctx, get_net_or_empty(idelayctrl, ctx->id("RST")), dup_idc.get(), ctx->id("RST"));
+            if (rdy != nullptr) {
+                NetInfo *dup_rdy =
+                        (ioctrl_sites.size() == 1)
+                                ? rdy
+                                : create_internal_net(idelayctrl->name, "CTRL_DUP_" + std::to_string(i) + "_RDY", false);
+                connect_port(ctx, dup_rdy, dup_idc.get(), ctx->id("RDY"));
+                dup_rdys.push_back(dup_rdy);
+            }
+            dup_idc->attrs[ctx->id("BEL")] = site + "/IDELAYCTRL";
+            new_cells.push_back(std::move(dup_idc));
+            ++i;
+        }
+        disconnect_port(ctx, idelayctrl, ctx->id("REFCLK"));
+        disconnect_port(ctx, idelayctrl, ctx->id("RST"));
+
         if (rdy != nullptr) {
-            NetInfo *dup_rdy =
-                    (ioctrl_sites.size() == 1)
-                            ? rdy
-                            : create_internal_net(idelayctrl->name, "CTRL_DUP_" + std::to_string(i) + "_RDY", false);
-            connect_port(ctx, dup_rdy, dup_idc.get(), ctx->id("RDY"));
-            dup_rdys.push_back(dup_rdy);
+            // AND together all the RDY signals
+            std::vector<NetInfo *> int_anded_rdy;
+            int_anded_rdy.push_back(dup_rdys.front());
+            for (size_t j = 1; j < dup_rdys.size(); j++) {
+                NetInfo *anded_net =
+                        (j == (dup_rdys.size() - 1))
+                                ? rdy
+                                : create_internal_net(idelayctrl->name, "ANDED_RDY_" + std::to_string(j), false);
+                auto lut = create_lut(ctx, idelayctrl->name.str(ctx) + "/RDY_AND_LUT_" + std::to_string(j),
+                                    {int_anded_rdy.at(j - 1), dup_rdys.at(j)}, anded_net, Property(8));
+                int_anded_rdy.push_back(anded_net);
+                new_cells.push_back(std::move(lut));
+            }
         }
-        dup_idc->attrs[ctx->id("BEL")] = site + "/IDELAYCTRL";
-        new_cells.push_back(std::move(dup_idc));
-        ++i;
-    }
-    disconnect_port(ctx, idelayctrl, ctx->id("REFCLK"));
-    disconnect_port(ctx, idelayctrl, ctx->id("RST"));
 
-    if (rdy != nullptr) {
-        // AND together all the RDY signals
-        std::vector<NetInfo *> int_anded_rdy;
-        int_anded_rdy.push_back(dup_rdys.front());
-        for (size_t j = 1; j < dup_rdys.size(); j++) {
-            NetInfo *anded_net =
-                    (j == (dup_rdys.size() - 1))
-                            ? rdy
-                            : create_internal_net(idelayctrl->name, "ANDED_RDY_" + std::to_string(j), false);
-            auto lut = create_lut(ctx, idelayctrl->name.str(ctx) + "/RDY_AND_LUT_" + std::to_string(j),
-                                  {int_anded_rdy.at(j - 1), dup_rdys.at(j)}, anded_net, Property(8));
-            int_anded_rdy.push_back(anded_net);
-            new_cells.push_back(std::move(lut));
-        }
+        packed_cells.insert(idelayctrl->name);
     }
 
-    packed_cells.insert(idelayctrl->name);
     flush_cells();
 
     ioctrl_rules[ctx->id("IDELAYCTRL")].new_type = ctx->id("IDELAYCTRL_IDELAYCTRL");
