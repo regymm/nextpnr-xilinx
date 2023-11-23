@@ -686,6 +686,9 @@ void XC7Packer::pack_iologic()
             ci->attrs[ctx->id("X_IO_BEL")] = ctx->getBelName(io_bel).str(ctx);
             iodelay_to_io[ci->name] = io_bel;
         } else if (ci->type == ctx->id("ODELAYE2")) {
+            NetInfo *clkin = get_net_or_empty(ci, ctx->id("CLKIN"));
+            if (clkin != nullptr && clkin->name == ctx->id("$PACKER_GND_NET")) disconnect_port(ctx, ci, ctx->id("CLKIN"));
+
             NetInfo *dataout = get_net_or_empty(ci, ctx->id("DATAOUT"));
             if (dataout == nullptr || dataout->users.empty())
                 log_error("%s '%s' has disconnected DATAOUT input\n", ci->type.c_str(ctx), ctx->nameOf(ci));
