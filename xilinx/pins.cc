@@ -327,11 +327,6 @@ void get_invertible_pins(Context *ctx, std::unordered_map<IdString, std::unorder
     invertible_pins[ctx->id("LDCE")].insert(ctx->id("G"));
     invertible_pins[ctx->id("LDPE")].insert(ctx->id("G"));
     // invertible_pins[ctx->id("LDPE")].insert(ctx->id("PRE"));
-    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("CLKINSEL"));
-    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("PSEN"));
-    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("PSINCDEC"));
-    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("PWRDWN"));
-    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("RST"));
     invertible_pins[ctx->id("IDDR")].insert(ctx->id("CK"));
     invertible_pins[ctx->id("ODDR")].insert(ctx->id("CK"));
     invertible_pins[ctx->id("ODDR")].insert(ctx->id("D1"));
@@ -361,6 +356,11 @@ void get_invertible_pins(Context *ctx, std::unordered_map<IdString, std::unorder
     invertible_pins[ctx->id("PLLE2_ADV")].insert(ctx->id("CLKINSEL"));
     invertible_pins[ctx->id("PLLE2_ADV")].insert(ctx->id("PWRDWN"));
     invertible_pins[ctx->id("PLLE2_ADV")].insert(ctx->id("RST"));
+    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("CLKINSEL"));
+    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("PSEN"));
+    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("PSINCDEC"));
+    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("PWRDWN"));
+    invertible_pins[ctx->id("MMCME2_ADV")].insert(ctx->id("RST"));
     invertible_pins[ctx->id("XADC")].insert(ctx->id("CONVSTCLK"));
     invertible_pins[ctx->id("XADC")].insert(ctx->id("DCLK"));
 }

@@ -746,20 +746,26 @@ void Arch::routeClock()
     // Special pass for faster routing of global clock psuedo-net
     for (auto net : sorted(nets)) {
         NetInfo *clk_net = net.second;
-        if (clk_net->driver.cell == nullptr)
+        auto clk_driver = clk_net->driver;
+        if (clk_driver.cell == nullptr)
             continue;
+        auto cell_type = clk_driver.cell->type;
+        auto no_users = clk_net->users.size();
+        auto clk_net_user = no_users == 1 ? clk_net->users.front().cell : nullptr;
+        auto clk_net_user_type = clk_net_user == nullptr ? IdString() : clk_net_user->type;
+        auto is_pll_or_mmcm = cell_type == id("PLLE2_ADV_PLLE2_ADV") || cell_type == id("MMCME2_ADV_MMCME2_ADV");
 
         // check if we have a global clock net, skip otherwise
         bool is_global = false;
-        if ((clk_net->driver.cell->type == id_BUFGCTRL || clk_net->driver.cell->type == id_BUFCE_BUFG_PS ||
-             clk_net->driver.cell->type == id_BUFCE_BUFCE || clk_net->driver.cell->type == id_BUFGCE_DIV_BUFGCE_DIV) &&
-            clk_net->driver.port == id("O"))
+        if ((cell_type == id_BUFGCTRL    || cell_type == id_BUFCE_BUFG_PS ||
+             cell_type == id_BUFCE_BUFCE || cell_type == id_BUFGCE_DIV_BUFGCE_DIV) &&
+            clk_driver.port == id("O"))
             is_global = true;
-        else if (clk_net->driver.cell->type == id("PLLE2_ADV_PLLE2_ADV") && clk_net->users.size() == 1 &&
-                 (clk_net->users.front().cell->type == id_BUFGCTRL || clk_net->users.front().cell->type == id_BUFCE_BUFCE ||
-                  clk_net->users.front().cell->type == id_BUFGCE_DIV_BUFGCE_DIV))
+        else if (no_users == 1 && is_pll_or_mmcm &&
+                 (clk_net_user_type == id_BUFGCTRL || clk_net_user_type == id_BUFCE_BUFCE ||
+                  clk_net_user_type == id_BUFGCE_DIV_BUFGCE_DIV))
             is_global = true;
-        else if (clk_net->users.size() == 1 && clk_net->users.front().cell->type == id("PLLE2_ADV_PLLE2_ADV") &&
+        else if (no_users == 1 && is_pll_or_mmcm &&
                  clk_net->users.front().port == id("CLKIN1"))
             is_global = true;
         if (!is_global)
@@ -811,7 +817,7 @@ void Arch::routeClock()
             }
             if (dest == WireId()) {
                 log_info("            failed to find a route using dedicated resources.\n");
-                if (clk_net->users.size() == 1 && clk_net->users.front().cell->type == id("PLLE2_ADV_PLLE2_ADV") &&
+                if (no_users == 1 && is_pll_or_mmcm &&
                     clk_net->users.front().port == id("CLKIN1")) {
                     // Due to some missing pips, currently special case more lenient solution
                     std::queue<WireId> empty;
