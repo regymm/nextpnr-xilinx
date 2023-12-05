@@ -88,7 +88,13 @@ void Arch::parseXdc(std::istream &in)
             log_error("targets other than 'get_ports' are not supported (on line %d)\n", lineno);
         if (split.size() < 2)
             log_error("failed to parse target (on line %d)\n", lineno);
-        IdString cellname = id(strip_quotes(split.at(1)));
+        IdString cellname;
+        if (split.size() == 2)
+            cellname = id(strip_quotes(split.at(1)));
+        else if (split.size() >= 4 && split.at(1) == "{" && split.at(3) == "}") 
+            cellname = id(strip_quotes(split.at(2)));
+        else
+            log_error("get_ports must be formatted as 'get_ports PORT_NAME' or 'get_ports { PORT_NAME }' (on line %d)\n", lineno);
         if (cells.count(cellname))
             tgt_cells.push_back(cells.at(cellname).get());
         return tgt_cells;
@@ -115,69 +121,73 @@ void Arch::parseXdc(std::istream &in)
 
     while (std::getline(in, line)) {
         ++lineno;
-        // Trim comments, from # until end of the line
-        size_t cstart = line.find('#');
-        if (cstart != std::string::npos)
-            line = line.substr(0, cstart);
-        if (isempty(line))
-            continue;
+        try{ 
+            // Trim comments, from # until end of the line
+            size_t cstart = line.find('#');
+            if (cstart != std::string::npos)
+                line = line.substr(0, cstart);
+            if (isempty(line))
+                continue;
 
-        std::vector<std::string> arguments = split_to_args(line, true);
-        if (arguments.empty())
-            continue;
-        std::string &cmd = arguments.front();
-        if (cmd == "set_property") {
-            std::vector<std::pair<std::string, std::string>> arg_pairs;
-            if (arguments.size() != 4)
-                log_error("expected four arguments to 'set_property' (on line %d)\n", lineno);
-            else if (arguments.at(1) == "-dict") {
-                std::vector<std::string> dict_args = split_to_args(strip_quotes(arguments.at(2)), false);
-                if ((dict_args.size() % 2) != 0)
-                    log_error("expected an even number of argument for dictionary (on line %d)\n", lineno);
-                arg_pairs.reserve(dict_args.size() / 2);
-                for (int cursor = 0; cursor + 1 < int(dict_args.size()); cursor += 2) {
-                    arg_pairs.emplace_back(std::move(dict_args.at(cursor)), std::move(dict_args.at(cursor + 1)));
-                }
-            } else
-                arg_pairs.emplace_back(std::move(arguments.at(1)), std::move(arguments.at(2)));
-            if (arguments.at(1) == "INTERNAL_VREF")
+            std::vector<std::string> arguments = split_to_args(line, true);
+            if (arguments.empty())
                 continue;
-            if (arguments.at(3).size() > 2 && arguments.at(3) == "[current_design]") {
-                log_warning("[current_design] isn't supported, ignoring (on line %d)\n", lineno);
-                continue;
-            }
-            std::vector<CellInfo *> dest = get_cells(arguments.at(3));
-            for (auto c : dest)
-                for (const auto &pair : arg_pairs)
-                    c->attrs[id(pair.first)] = std::string(pair.second);
-        } else if (cmd == "create_clock") {
-            double period = 0;
-            bool got_period = false;
-            int cursor = 1;
-            for (cursor = 1; cursor < int(arguments.size()); cursor++) {
-                std::string opt = arguments.at(cursor);
-                if (opt == "-add")
-                    ;
-                else if (opt == "-name" || opt == "-waveform")
-                    cursor++;
-                else if (opt == "-period") {
-                    cursor++;
-                    period = std::stod(arguments.at(cursor));
-                    got_period = true;
+            std::string &cmd = arguments.front();
+            if (cmd == "set_property") {
+                std::vector<std::pair<std::string, std::string>> arg_pairs;
+                if (arguments.size() != 4)
+                    log_error("expected four arguments to 'set_property' (on line %d)\n", lineno);
+                else if (arguments.at(1) == "-dict") {
+                    std::vector<std::string> dict_args = split_to_args(strip_quotes(arguments.at(2)), false);
+                    if ((dict_args.size() % 2) != 0)
+                        log_error("expected an even number of argument for dictionary (on line %d)\n", lineno);
+                    arg_pairs.reserve(dict_args.size() / 2);
+                    for (int cursor = 0; cursor + 1 < int(dict_args.size()); cursor += 2) {
+                        arg_pairs.emplace_back(std::move(dict_args.at(cursor)), std::move(dict_args.at(cursor + 1)));
+                    }
                 } else
-                    break;
+                    arg_pairs.emplace_back(std::move(arguments.at(1)), std::move(arguments.at(2)));
+                if (arguments.at(1) == "INTERNAL_VREF")
+                    continue;
+                if (arguments.at(3).size() > 2 && arguments.at(3) == "[current_design]") {
+                    log_warning("[current_design] isn't supported, ignoring (on line %d)\n", lineno);
+                    continue;
+                }
+                std::vector<CellInfo *> dest = get_cells(arguments.at(3));
+                for (auto c : dest)
+                    for (const auto &pair : arg_pairs)
+                        c->attrs[id(pair.first)] = std::string(pair.second);
+            } else if (cmd == "create_clock") {
+                double period = 0;
+                bool got_period = false;
+                int cursor = 1;
+                for (cursor = 1; cursor < int(arguments.size()); cursor++) {
+                    std::string opt = arguments.at(cursor);
+                    if (opt == "-add")
+                        ;
+                    else if (opt == "-name" || opt == "-waveform")
+                        cursor++;
+                    else if (opt == "-period") {
+                        cursor++;
+                        period = std::stod(arguments.at(cursor));
+                        got_period = true;
+                    } else
+                        break;
+                }
+                if (!got_period)
+                    log_error("found create_clock without period (on line %d)", lineno);
+                std::vector<NetInfo *> dest = get_nets(arguments.at(cursor));
+                for (auto n : dest) {
+                    n->clkconstr = std::unique_ptr<ClockConstraint>(new ClockConstraint);
+                    n->clkconstr->period = DelayPair(getDelayFromNS(period));
+                    n->clkconstr->high = DelayPair(getDelayFromNS(period / 2));
+                    n->clkconstr->low = DelayPair(getDelayFromNS(period / 2));
+                }
+            } else {
+                log_info("ignoring unsupported XDC command '%s' (on line %d)\n", cmd.c_str(), lineno);
             }
-            if (!got_period)
-                log_error("found create_clock without period (on line %d)", lineno);
-            std::vector<NetInfo *> dest = get_nets(arguments.at(cursor));
-            for (auto n : dest) {
-                n->clkconstr = std::unique_ptr<ClockConstraint>(new ClockConstraint);
-                n->clkconstr->period = DelayPair(getDelayFromNS(period));
-                n->clkconstr->high = DelayPair(getDelayFromNS(period / 2));
-                n->clkconstr->low = DelayPair(getDelayFromNS(period / 2));
-            }
-        } else {
-            log_info("ignoring unsupported XDC command '%s' (on line %d)\n", cmd.c_str(), lineno);
+        } catch (...) {
+            log_error("Unhandled XDC parsing error on line %d", lineno);
         }
     }
     if (!isempty(linebuf))
