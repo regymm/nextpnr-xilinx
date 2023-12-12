@@ -1584,10 +1584,10 @@ void write_mmcm(CellInfo *ci)
 
         std::string comp = str_or_default(ci->params, id_COMPENSATION, "INTERNAL");
         push("COMP");
-        if (comp == "INTERNAL") {
+        if (comp == "INTERNAL" || comp == "ZHOLD") {
+            // does not seem to make a difference in vivado
+            // both modes set this bit
             write_bit("Z_ZHOLD");
-        } else if (comp == "ZHOLD") {
-            write_bit("ZHOLD");
         } else {
             NPNR_ASSERT_FALSE("unsupported compensation type");
         }
@@ -1595,10 +1595,10 @@ void write_mmcm(CellInfo *ci)
 
         // FIXME: should these be calculated somehow?
         write_int_vector("FILTREG1_RESERVED[11:0]", 0x8, 12);
-        write_int_vector("LKTABLE[39:0]", 0xffdf4fa401ULL, 40);
-        write_int_vector("POWER_REG_POWER_REG_POWER_REG[15:0]", 0x9900U, 16);
+        write_int_vector("LKTABLE[39:0]", 0xe73e8fa401ULL, 40);
+        write_int_vector("POWER_REG_POWER_REG_POWER_REG[15:0]", 0x1 << 8, 16);
         write_bit("LOCKREG3_RESERVED[0]");
-        write_int_vector("TABLE[9:0]", 0x304, 10);
+        write_int_vector("TABLE[9:0]", 0x3d4, 10);
         pop(2);
     }
 
