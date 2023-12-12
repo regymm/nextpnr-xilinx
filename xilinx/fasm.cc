@@ -1583,7 +1583,7 @@ void write_mmcm(CellInfo *ci)
         write_pll_clkout("CLKOUT6", ci);
 
         std::string comp = str_or_default(ci->params, id_COMPENSATION, "INTERNAL");
-        push("COMPENSATION");
+        push("COMP");
         if (comp == "INTERNAL") {
             write_bit("Z_ZHOLD");
         } else if (comp == "ZHOLD") {
