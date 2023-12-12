@@ -554,11 +554,11 @@ struct Router2
                     }
                     cpip = cwd.bound_nets.at(net->udata).second;
                 }
-#if 0
+#if 1
                 log("   explore %s\n", ctx->nameOfWire(cwd.w));
 #endif
                 if (ctx->wireIntent(cwd.w) == (const_val ? ID_PSEUDO_VCC : ID_PSEUDO_GND)) {
-#if 0
+#if 1
                     log("    Hit global network at %s\n", ctx->nameOfWire(cwd.w));
 #endif
                     // We've hit the constant pseudo-network, continue from here
@@ -585,7 +585,7 @@ struct Router2
 
                     break;
                 }
-#if 0
+#if 1
                 std::string name = ctx->nameOfWire(cwd.w);
                 if (name.substr(int(name.size()) - 3) == "A_O") {
                     for (auto uh : ctx->getPipsUphill(flat_wires[cursor].w)) {
@@ -594,15 +594,21 @@ struct Router2
                 }
 #endif
                 bool did_something = false;
+                std::cerr << "net: " << net->name.str(ctx) << std:: endl;
                 for (auto uh : ctx->getPipsUphill(flat_wires[cursor].w)) {
                     did_something = true;
+                    auto bound = ctx->getBoundPipNet(uh);
+                    std::cerr << "got uh, avail: " << ctx->checkPipAvail(uh) << " net: " << (bound == nullptr ? "NULL" : bound->name.str(ctx)) << std::endl;
                     if (!ctx->checkPipAvail(uh) && ctx->getBoundPipNet(uh) != net)
                         continue;
+                    std::cerr << "aaa" << std::endl;
                     if (cpip != PipId() && cpip != uh)
                         continue; // don't allow multiple pips driving a wire with a net
+                    std::cerr << "bbb" << std::endl;
                     int next = wire_to_idx.at(ctx->getPipSrcWire(uh));
                     if (was_visited(next))
                         continue; // skip wires that have already been visited
+                    std::cerr << "ccc" << std::endl;
                     auto &wd = flat_wires[next];
                     if (wd.unavailable)
                         continue;

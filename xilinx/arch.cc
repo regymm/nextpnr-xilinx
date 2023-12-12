@@ -752,6 +752,8 @@ void Arch::routeClock()
         auto from_pll_or_mmcm = cell_type == id("PLLE2_ADV_PLLE2_ADV") || cell_type == id("MMCME2_ADV_MMCME2_ADV");
         auto to_pll_or_mmcm = clk_net_user_type == id("PLLE2_ADV_PLLE2_ADV") || clk_net_user_type == id("MMCME2_ADV_MMCME2_ADV");
 
+        std::cerr << "cell type: " << cell_type.str(getCtx()) << " user type: " << clk_net_user_type.str(getCtx()) << std::endl;
+
         // check if we have a global clock net, skip otherwise
         bool is_global = false;
         if ((cell_type == id_BUFGCTRL    || cell_type == id_BUFCE_BUFG_PS ||
@@ -764,8 +766,10 @@ void Arch::routeClock()
             is_global = true;
         else if (to_pll_or_mmcm && clk_net->users.front().port == id("CLKIN1"))
             is_global = true;
-        if (!is_global)
+        if (!is_global) {
+            std::cerr << "clock " << clk_net->name.str(this) << " is not global" << std::endl;
             continue;
+        }
 
         log_info("    routing clock '%s'\n", clk_net->name.c_str(this));
         bindWire(getCtx()->getNetinfoSourceWire(clk_net), clk_net, STRENGTH_LOCKED);
@@ -787,13 +791,17 @@ void Arch::routeClock()
             while (!visit.empty()) {
                 WireId curr = visit.front();
                 visit.pop();
+                std::cerr << "==> Visiting wire " << nameOfWire(curr) << std::endl;
                 if (getBoundWireNet(curr) == clk_net) {
+                    std::cerr << "=== FOUND! ===" << std::endl;
                     dest = curr;
                     break;
                 }
                 for (auto uh : getPipsUphill(curr)) {
-                    if (!checkPipAvail(uh))
+                    if (!checkPipAvail(uh)) {
+                        std::cerr << "pip " << nameOfPip(uh) << " is not available " << std::endl;
                         continue;
+                    }
                     WireId src = getPipSrcWire(uh);
                     if (backtrace.count(src))
                         continue;
@@ -804,10 +812,17 @@ void Arch::routeClock()
                         intent == ID_DOUBLE || intent == ID_HLONG || intent == ID_HQUAD || intent == ID_OPTDELAY ||
                         intent == ID_SINGLE || intent == ID_VLONG || intent == ID_VLONG12 || intent == ID_VQUAD ||
                         intent == ID_PINBOUNCE)
-                        continue;
+                        {
+                            std::cerr << "intent of pip " << nameOfPip(uh) << " is not right" << std::endl;
+                            continue;
+                        }
                     if (!checkWireAvail(src) && getBoundWireNet(src) != clk_net)
+                    {
+                        std::cerr << "Souce wire " << nameOfWire(src) << " is not available and bound net is not clock" << std::endl;
                         continue;
+                    }
                     backtrace[src] = uh;
+                    std::cerr << "====> add to wires to visit: " << nameOfWire(src) << std::endl;
                     visit.push(src);
                 }
             }
