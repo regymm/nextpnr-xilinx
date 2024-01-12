@@ -344,7 +344,7 @@ void Arch::setup_pip_blacklist()
             for (int j = 0; j < td.num_pips; j++) {
                 auto &pd = td.pip_data[j];
                 std::string dest_name = IdString(td.wire_data[pd.dst_index].name).str(this);
-                if (dest_name.find("FREQ_REF") != std::string::npos)
+                if (boost::contains(dest_name, "FREQ_REF"))
                     blacklist_pips[td.type].insert(j);
             }
         } else if (boost::starts_with(type, "CLK_HROW_TOP")) {
@@ -353,8 +353,8 @@ void Arch::setup_pip_blacklist()
                 std::string dest_name = IdString(td.wire_data[pd.dst_index].name).str(this);
                 std::string src_name = IdString(td.wire_data[pd.src_index].name).str(this);
 
-                if (dest_name.find("CK_BUFG_CASCO") != std::string::npos &&
-                    src_name.find("CK_BUFG_CASCIN") != std::string::npos)
+                if (boost::contains(dest_name, "CK_BUFG_CASCO") &&
+                    boost::contains(src_name, "CK_BUFG_CASCIN"))
                     blacklist_pips[td.type].insert(j);
             }
         } else if (boost::starts_with(type, "HCLK_IOI")) {
@@ -363,21 +363,25 @@ void Arch::setup_pip_blacklist()
                 std::string dest_name = IdString(td.wire_data[pd.dst_index].name).str(this);
                 std::string src_name = IdString(td.wire_data[pd.src_index].name).str(this);
 
-                if (dest_name.find("RCLK_BEFORE_DIV") != std::string::npos &&
-                    src_name.find("IMUX") != std::string::npos)
+                if (boost::contains(dest_name, "RCLK_BEFORE_DIV") &&
+                    boost::contains(src_name, "IMUX"))
                     blacklist_pips[td.type].insert(j);
             }
-        } else if (type.find("IOI") != std::string::npos) {
+        } else if (boost::contains(type, "IOI")) {
             for (int j = 0; j < td.num_pips; j++) {
                 auto &pd = td.pip_data[j];
                 std::string dest_name = IdString(td.wire_data[pd.dst_index].name).str(this);
                 std::string src_name = IdString(td.wire_data[pd.src_index].name).str(this);
 
-                if (dest_name.find("CLKB") != std::string::npos && src_name.find("IMUX22") != std::string::npos)
+                if (boost::contains(dest_name, "CLKB") && boost::contains(src_name, "IMUX22"))
                     blacklist_pips[td.type].insert(j);
-                if (dest_name.find("OCLKB") != std::string::npos && src_name.find("IOI_OCLK_") != std::string::npos)
+                if (boost::contains(dest_name, "OCLKB") && boost::contains(src_name, "IOI_OCLK_"))
                     blacklist_pips[td.type].insert(j);
-                if (dest_name.find("OCLKM") != std::string::npos && src_name.find("IMUX31") != std::string::npos)
+                if (boost::contains(dest_name, "OCLKM") && boost::contains(src_name, "IMUX31"))
+                    blacklist_pips[td.type].insert(j);
+                if (boost::contains(dest_name, "_CLKDIV") && boost::contains(src_name, "IMUX8_"))
+                    blacklist_pips[td.type].insert(j);
+                if (boost::contains(type, "_SING") && dest_name == "IOI_ILOGIC0_CLK" && src_name == "IOI_LEAF_GCLK0")
                     blacklist_pips[td.type].insert(j);
             }
         } else if (boost::starts_with(type, "CMT_TOP_R")) {
@@ -386,9 +390,9 @@ void Arch::setup_pip_blacklist()
                 std::string dest_name = IdString(td.wire_data[pd.dst_index].name).str(this);
                 std::string src_name = IdString(td.wire_data[pd.src_index].name).str(this);
 
-                if (dest_name.find("PLLOUT_CLK_FREQ_BB_REBUFOUT") != std::string::npos)
+                if (boost::contains(dest_name, "PLLOUT_CLK_FREQ_BB_REBUFOUT"))
                     blacklist_pips[td.type].insert(j);
-                if (dest_name.find("MMCM_CLK_FREQ_BB") != std::string::npos)
+                if (boost::contains(dest_name, "MMCM_CLK_FREQ_BB"))
                     blacklist_pips[td.type].insert(j);
             }
         }
