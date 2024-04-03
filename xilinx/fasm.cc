@@ -2062,18 +2062,18 @@ struct FasmBackend
             auto clkswing_cfg = int_or_default(ci->params, ctx->id("CLKSWING_CFG"), 3);
             if (clkswing_cfg != 3) log_warning("%s/%s: According to ug482, CLK should always be 0b11\n",
                                                ci->hierpath.c_str(ctx), ci->name.c_str(ctx));
-            write_int_vector("CLKSWING_CFG[1:0]", clkswing_cfg, 2);
+            write_int_vector("IBUFDS_GTE2.CLKSWING_CFG[1:0]", clkswing_cfg, 2);
             write_bit("INV_DRPCLK", bool_or_default(ci->params, ctx->id("IS_DRPCLK_INVERTED")));
             write_bit("INV_PLL0LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL0LOCKDETCLK_INVERTED")));
             write_bit("INV_PLL1LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL1LOCKDETCLK_INVERTED")));
 
             // according to ug482, these attributes contain magic undocumented and reserved wizard values
-            write_int_vector("PLL0_CFG", 0b111110000001111011100, 21);
-            write_int_vector("PLL1_CFG", 0b111110000001111011100, 21);
-            write_int_vector("PLL0_INIT_CFG", 0b11110, 5);
-            write_int_vector("PLL1_INIT_CFG", 0b11110, 5);
-            write_int_vector("PLL0_LOCK_CFG", 0b111101000, 9);
-            write_int_vector("PLL1_LOCK_CFG", 0b111101000, 9);
+            write_int_vector("PLL0_CFG[20:0]", 0b111110000001111011100, 21);
+            write_int_vector("PLL1_CFG[20:0]", 0b111110000001111011100, 21);
+            write_int_vector("PLL0_INIT_CFG[4:0]", 0b11110, 5);
+            write_int_vector("PLL1_INIT_CFG[4:0]", 0b11110, 5);
+            write_int_vector("PLL0_LOCK_CFG[8:0]", 0b111101000, 9);
+            write_int_vector("PLL1_LOCK_CFG[8:0]", 0b111101000, 9);
 
             auto pll0_refclk_div = int_or_default(ci->params, ctx->id("PLL0_REFCLK_DIV"), 1);
             if (pll0_refclk_div < 1 || pll0_refclk_div >2)
