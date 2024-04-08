@@ -2047,10 +2047,10 @@ struct FasmBackend
             if (!clkcm_cfg) log_warning("%s/%s: According to ug482, CLKCM_CFG should always be on\n",
                                         ci->hierpath.c_str(ctx), ci->name.c_str(ctx));
             write_bit("CLKCM_CFG", clkcm_cfg);
-            auto clk_rcv_trst = bool_or_default(ci->params, ctx->id("CLK_RCV_TRST"), true);
-            if (!clk_rcv_trst) log_warning("%s/%s: According to ug482, CLK_RCV_TRST should always be on\n",
+            auto clkrcv_trst = bool_or_default(ci->params, ctx->id("CLKRCV_TRST"), true);
+            if (!clkrcv_trst) log_warning("%s/%s: According to ug482, CLKRCV_TRST should always be on\n",
                                            ci->hierpath.c_str(ctx), ci->name.c_str(ctx));
-            write_bit("CLK_RCV_TRST", clk_rcv_trst);
+            write_bit("CLKRCV_TRST", clkrcv_trst);
             pop();
         } else {
             push("GTPE2_COMMON");

@@ -139,8 +139,7 @@ void XC7Packer::decompose_iob(CellInfo *xil_iob, bool is_hr, const std::string &
             subcells.push_back(obuf);
     }
 
-    bool is_diff_ibuf = xil_iob->type == ctx->id("IBUFDS") || xil_iob->type == ctx->id("IBUFDS_INTERMDISABLE") ||
-                        xil_iob->type == ctx->id("IBUFDS");
+    bool is_diff_ibuf = xil_iob->type == ctx->id("IBUFDS") || xil_iob->type == ctx->id("IBUFDS_INTERMDISABLE");
     bool is_diff_iobuf = xil_iob->type == ctx->id("IOBUFDS") || xil_iob->type == ctx->id("IOBUFDS_DCIEN");
     bool is_diff_out_iobuf = xil_iob->type == ctx->id("IOBUFDS_DIFF_OUT") ||
                              xil_iob->type == ctx->id("IOBUFDS_DIFF_OUT_DCIEN") ||
@@ -355,10 +354,11 @@ void XC7Packer::pack_io()
     }
     // Decompose macro IO primitives to smaller primitives that map logically to the actual IO Bels
     for (auto &iob : pad_and_buf) {
-        if (packed_cells.count(iob.second.cell->name))
+        auto cell = iob.second.cell;
+        if (packed_cells.count(cell->name) || cell->type == ctx->id("IBUFDS_GTE2"))
             continue;
-        decompose_iob(iob.second.cell, true, str_or_default(iob.first->attrs, ctx->id("IOSTANDARD"), ""));
-        packed_cells.insert(iob.second.cell->name);
+        decompose_iob(cell, true, str_or_default(iob.first->attrs, ctx->id("IOSTANDARD"), ""));
+        packed_cells.insert(cell->name);
     }
     flush_cells();
 

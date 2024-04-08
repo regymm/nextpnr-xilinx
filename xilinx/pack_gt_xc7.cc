@@ -25,17 +25,7 @@ NEXTPNR_NAMESPACE_BEGIN
 
 void XC7Packer::pack_gt()
 {
-    log_info("Packing High Speed Transceivers..\n");
-
-    auto check_illegal_fanout = [&] (NetInfo *ni, std::string port) {
-        if (ni->users.size() > 1)
-            log_error("Port %s connected to net %s has more than one user", port.c_str(), ni->name.c_str(ctx));
-
-        PortRef& user = *ni->users.end();
-        if (user.cell->type != id_IBUFDS_GTE2)
-            log_error("User %s of net %s is not a IBUFDS_GTE2 block, but %s",
-                user.cell->name.c_str(ctx), ni->name.c_str(ctx), user.cell->type.c_str(ctx));
-    };
+    log_info("Packing GTP Transceivers..\n");
 
     std::vector<CellInfo *> all_plls;
 
@@ -57,28 +47,26 @@ void XC7Packer::pack_gt()
                 auto port_net  = port.second.net;
 
                 if (boost::starts_with(port_name, "GTREFCLK")) {
-                    if (port_net == nullptr)
-                        continue;
-
                     if (boost::ends_with(port_name, "0")) {
                         refclk0_used = true;
                         ci->setParam(ctx->id("_GTREFCLK0_USED"), Property(refclk0_used));
-                    }
-                    else {
+                    } else {
                         refclk1_used = true;
                         ci->setParam(ctx->id("_GTREFCLK1_USED"), Property(refclk1_used));
                     }
 
-                    check_illegal_fanout(port_net, port_name);
+                    CellInfo *driver = port_net->driver.cell;
+                    if (driver == nullptr) log_error("Port %s connected to net %s has no driver!", port_name.c_str(), port_net->name.c_str(ctx));
+                    if (driver->type != id_IBUFDS_GTE2) {
+                        log_warning("Driver %s of net %s is not a IBUFDS_GTE2 block, but %s\n",
+                            driver->name.c_str(ctx), port_net->name.c_str(ctx), driver->type.c_str(ctx));
+                            continue;
+                        } else {
+                            log_info("Driver %s of net %s is a IBUFDS_GTE2 block\n",
+                                driver->name.c_str(ctx), port_net->name.c_str(ctx));
+                        }
 
-                    // constrain the IBUFDS_GTE2 to the same tile
-                    // as the PLL it is connected to, because
-                    // there is only a route within the same tile
-                    auto ibufds = port_net->driver.cell;
-                    // ibufds->cluster = ci->name;
-                    ci->constr_children.push_back(ibufds);
-                    ibufds->constr_x = 0;
-                    ibufds->constr_y = 0;
+                    try_preplace(driver, ctx->id("I"));
                 }
             }
 

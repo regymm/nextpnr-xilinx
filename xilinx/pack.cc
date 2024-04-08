@@ -927,6 +927,7 @@ bool Arch::pack()
         packer.pack_idelayctrl();
         packer.pack_cfg();
         packer.pack_clocking();
+        packer.pack_gt();
         packer.pack_muxfs();
         packer.pack_carries();
         packer.pack_srls();
