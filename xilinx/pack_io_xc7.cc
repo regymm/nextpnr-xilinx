@@ -981,4 +981,20 @@ void XC7Packer::pack_idelayctrl()
     generic_xform(ioctrl_rules);
 }
 
+void XC7Packer::pack_cfg()
+{
+    log_info("Packing cfg...\n");
+    std::unordered_map<IdString, XFormRule> cfg_rules;
+    cfg_rules[ctx->id("BSCANE2")].new_type      = ctx->id("BSCAN");
+    cfg_rules[ctx->id("DCIRESET")].new_type     = ctx->id("DCIRESET_DCIRESET");
+    cfg_rules[ctx->id("DNA_PORT")].new_type     = ctx->id("DNA_PORT_DNA_PORT");
+    cfg_rules[ctx->id("EFUSE_USR")].new_type    = ctx->id("EFUSE_USR_EFUSE_USR");
+    cfg_rules[ctx->id("ICAPE2")].new_type       = ctx->id("ICAP_ICAP");
+    cfg_rules[ctx->id("FRAME_ECCE2")].new_type  = ctx->id("FRAME_ECC_FRAME_ECC");
+    cfg_rules[ctx->id("STARTUPE2")].new_type    = ctx->id("STARTUP_STARTUP");
+    cfg_rules[ctx->id("USR_ACCESSE2")].new_type = ctx->id("USR_ACCESS_USR_ACCESS");
+
+    generic_xform(cfg_rules);
+}
+
 NEXTPNR_NAMESPACE_END
