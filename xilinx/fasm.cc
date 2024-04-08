@@ -762,7 +762,7 @@ struct FasmBackend
         std::string tile = get_tile_name(pad->bel.tile);
         push(tile);
 
-        std::cerr << "==> write io config for " << pad->name.str(ctx) << " of tile " << tile << " net " << pad_net->name.str(ctx) << std::endl;
+        //std::cerr << "==> write io config for " << pad->name.str(ctx) << " of tile " << tile << " net " << pad_net->name.str(ctx) << std::endl;
 
         bool is_riob18   = boost::starts_with(tile, "RIOB18_");
         bool is_sing     = boost::contains(tile, "_SING_");
@@ -2041,7 +2041,6 @@ struct FasmBackend
 
         if (ci->type == ctx->id("IBUFDS_GTE2")) {
             Loc siteLoc = ctx->getSiteLocInTile(ci->bel);
-            std::cerr << "cell " << ci->name.str(ctx) << " is at y = " << siteLoc.y << std::endl;
             push("IBUFDS_GTE2_Y" + std::to_string(siteLoc.y));
             write_bit("IN_USE");
             auto clkcm_cfg = bool_or_default(ci->params, ctx->id("CLKCM_CFG"), true);

@@ -61,7 +61,7 @@ void XC7Packer::prepare_clocking()
         }
         if (ci->attrs.count(ctx->id("BEL"))) {
             auto bel_str = ci->attrs.at(ctx->id("BEL")).as_string();
-            std::cerr << "getBelByName: " << bel_str << std::endl;
+            // std::cerr << "getBelByName: " << bel_str << std::endl;
             used_bels.insert(ctx->getBelByName(ctx->id(bel_str)));
         }
     }
