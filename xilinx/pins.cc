@@ -292,8 +292,9 @@ void get_invertible_pins(Context *ctx, std::unordered_map<IdString, std::unorder
     invertible_pins[ctx->id("GTPE2_CHANNEL")].insert(ctx->id("TXUSRCLK2"));
     invertible_pins[ctx->id("GTPE2_CHANNEL")].insert(ctx->id("TXUSRCLK"));
     invertible_pins[ctx->id("GTPE2_COMMON")].insert(ctx->id("DRPCLK"));
-    invertible_pins[ctx->id("GTPE2_COMMON")].insert(ctx->id("GTGREFCLK0"));
-    invertible_pins[ctx->id("GTPE2_COMMON")].insert(ctx->id("GTGREFCLK1"));
+    //The attributes for those have not been fuzzed yet
+    //invertible_pins[ctx->id("GTPE2_COMMON")].insert(ctx->id("GTGREFCLK0"));
+    //invertible_pins[ctx->id("GTPE2_COMMON")].insert(ctx->id("GTGREFCLK1"));
     invertible_pins[ctx->id("GTPE2_COMMON")].insert(ctx->id("PLL0LOCKDETCLK"));
     invertible_pins[ctx->id("GTPE2_COMMON")].insert(ctx->id("PLL1LOCKDETCLK"));
     invertible_pins[ctx->id("GTXE2_CHANNEL")].insert(ctx->id("CPLLLOCKDETCLK"));
