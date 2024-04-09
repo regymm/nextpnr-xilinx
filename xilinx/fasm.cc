@@ -2066,6 +2066,11 @@ struct FasmBackend
             write_bit("INV_PLL0LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL0LOCKDETCLK_INVERTED")));
             write_bit("INV_PLL1LOCKDETCLK", bool_or_default(ci->params, ctx->id("IS_PLL1LOCKDETCLK_INVERTED")));
 
+            auto bias_cfg = int_or_default(ci->params, ctx->id("BIAS_CFG"), 0);
+            write_int_vector("BIAS_CFG[63:0]", bias_cfg, 64);
+            auto common_cfg = int_or_default(ci->params, ctx->id("COMMON_CFG"), 0);
+            write_int_vector("COMMON_CFG[31:0]", common_cfg, 32);
+
             // according to ug482, these attributes contain magic undocumented and reserved wizard values
             write_int_vector("PLL0_CFG[20:0]", 0b111110000001111011100, 21);
             write_int_vector("PLL1_CFG[20:0]", 0b111110000001111011100, 21);
@@ -2075,11 +2080,11 @@ struct FasmBackend
             write_int_vector("PLL1_LOCK_CFG[8:0]", 0b111101000, 9);
 
             auto pll0_refclk_div = int_or_default(ci->params, ctx->id("PLL0_REFCLK_DIV"), 1);
-            if (pll0_refclk_div < 1 || pll0_refclk_div >2)
+            if (pll0_refclk_div < 1 || pll0_refclk_div > 2)
                 log_error("PLL0_REFCLK_DIV can only be 1 or 2, but is: %d", pll0_refclk_div);
             write_bit("PLL0_REFCLK_DIV[4]", pll0_refclk_div == 1);
             auto pll1_refclk_div = int_or_default(ci->params, ctx->id("PLL1_REFCLK_DIV"), 1);
-            if (pll1_refclk_div < 1 || pll1_refclk_div >2)
+            if (pll1_refclk_div < 1 || pll1_refclk_div > 2)
                 log_error("PLL1_REFCLK_DIV can only be 1 or 2, but is: %d", pll1_refclk_div);
             write_bit("PLL1_REFCLK_DIV[4]", pll1_refclk_div == 1);
 
@@ -2102,6 +2107,19 @@ struct FasmBackend
             if (pll1_fbdiv_45 < 4 || pll1_fbdiv_45 > 5)
                 log_error("PLL1_FBDIV_45 can only be 4 or 5, but is: %d", pll1_fbdiv);
             write_bit("PLL1_FBDIV_45[0]", pll1_fbdiv_45 == 5);
+
+            auto pll0_dmon_cfg = bool_or_default(ci->params, ctx->id("PLL0_DMON_CFG"), false);
+            write_bit("PLL0_DMON_CFG[0]", pll0_dmon_cfg);
+            auto pll1_dmon_cfg = bool_or_default(ci->params, ctx->id("PLL1_DMON_CFG"), false);
+            write_bit("PLL1_DMON_CFG[0]", pll1_dmon_cfg);
+
+            auto rsvd_attr0 = int_or_default(ci->params, ctx->id("RSVD_ATTR0"), 0);
+            write_int_vector("RSVD_ATTR0[15:0]", rsvd_attr0, 16);
+            auto rsvd_attr1 = int_or_default(ci->params, ctx->id("RSVD_ATTR1"), 0);
+            write_int_vector("RSVD_ATTR1[15:0]", rsvd_attr1, 16);
+
+            auto pll_clkout_cfg = int_or_default(ci->params, ctx->id("PLL_CLKOUT_CFG"), 0);
+            write_int_vector("PLL_CLKOUT_CFG[7:0]", pll_clkout_cfg, 8);
 
             pop();
         }
