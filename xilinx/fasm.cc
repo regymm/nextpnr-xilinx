@@ -2827,6 +2827,12 @@ struct FasmBackend
             if (ci->type == ctx->id("DSP48E1_DSP48E1")) {
                 write_dsp_cell(ci);
                 blank();
+                continue;
+            }
+            if (ci->type == ctx->id("GTPE2_CHANNEL")) {
+                write_gtp_channel(ci);
+                blank();
+                continue;
             }
         }
     }
