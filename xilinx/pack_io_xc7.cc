@@ -451,7 +451,7 @@ void XC7Packer::check_valid_pad(CellInfo *ci, std::string type)
 {
     // GTP pads don't need IOSTANDARD constraints
     auto bel = ci->attrs[id_BEL].as_string();
-    if (boost::starts_with(bel, "IPAD")) return;
+    if (boost::starts_with(bel, "IPAD") || boost::starts_with(bel, "OPAD")) return;
 
     auto iostandard_attr = ci->attrs.find(id_IOSTANDARD);
     if (iostandard_attr == ci->attrs.end())
