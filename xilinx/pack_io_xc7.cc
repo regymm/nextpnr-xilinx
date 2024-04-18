@@ -309,7 +309,7 @@ void XC7Packer::pack_io()
             log_info("    Constraining '%s' to site '%s'\n", pad->name.c_str(ctx), site.c_str());
             std::string tile = get_tilename_by_sitename(ctx, site);
             log_info("    Tile '%s'\n", tile.c_str());
-            if (boost::starts_with(tile, "GTP_COMMON")) {
+            if (boost::starts_with(tile, "GTP_COMMON") || boost::starts_with(tile, "GTP_CHANNEL")) {
                 pad->attrs[id_BEL] = std::string(site + "/PAD");
             } else {
                 if (boost::starts_with(tile, "RIOB18_"))
@@ -355,8 +355,31 @@ void XC7Packer::pack_io()
     // Decompose macro IO primitives to smaller primitives that map logically to the actual IO Bels
     for (auto &iob : pad_and_buf) {
         auto cell = iob.second.cell;
+        // GTP pads do not the IO handling like regular IOs
+        // std::cerr << "About to decompose cell " << cell->name.c_str(ctx) << " with type " << cell->type.c_str(ctx) << std::endl;
         if (packed_cells.count(cell->name) || cell->type == ctx->id("IBUFDS_GTE2"))
             continue;
+
+        if (cell->type == ctx->id("OBUF")) {
+            auto net = cell->ports[ctx->id("I")].net;
+            if (net != nullptr) {
+                auto driver_cell = net->driver.cell;
+                if (driver_cell != nullptr && driver_cell->type == ctx->id("GTPE2_CHANNEL")) {
+                    packed_cells.insert(cell->name);
+                    continue;
+                }
+            }
+        }
+        if (cell->type == ctx->id("IBUF")) {
+            auto net = cell->ports[ctx->id("O")].net;
+            if (net != nullptr && net->users.size() == 1) {
+                if (net->users[0].cell->type == ctx->id("GTPE2_CHANNEL")) {
+                    packed_cells.insert(cell->name);
+                    continue;
+                }
+            }
+        }
+
         decompose_iob(cell, true, str_or_default(iob.first->attrs, ctx->id("IOSTANDARD"), ""));
         packed_cells.insert(cell->name);
     }
@@ -449,7 +472,7 @@ void XC7Packer::pack_io()
 
 void XC7Packer::check_valid_pad(CellInfo *ci, std::string type)
 {
-    // GTP pads don't need IOSTANDARD constraints
+    // GT pads don't need IOSTANDARD constraints
     auto bel = ci->attrs[id_BEL].as_string();
     if (boost::starts_with(bel, "IPAD") || boost::starts_with(bel, "OPAD")) return;
 
