@@ -360,6 +360,7 @@ void XC7Packer::pack_io()
         if (packed_cells.count(cell->name) || cell->type == ctx->id("IBUFDS_GTE2"))
             continue;
 
+        // This OBUF is integrated into the GTP channel pad and does not need placing
         if (cell->type == ctx->id("OBUF")) {
             auto net = cell->ports[ctx->id("I")].net;
             if (net != nullptr) {
@@ -370,6 +371,7 @@ void XC7Packer::pack_io()
                 }
             }
         }
+        // This IBUF is integrated into the GTP channel pad and does not need placing
         if (cell->type == ctx->id("IBUF")) {
             auto net = cell->ports[ctx->id("O")].net;
             if (net != nullptr && net->users.size() == 1) {
