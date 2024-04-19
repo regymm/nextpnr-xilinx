@@ -153,11 +153,15 @@ struct Router2
             for (size_t j = 0; j < ni->users.size(); j++) {
                 auto &usr = ni->users.at(j);
                 WireId src_wire = ctx->getNetinfoSourceWire(ni), dst_wire = ctx->getNetinfoSinkWire(ni, usr);
+                // std::cerr << "===> setup net: " << ni->name.c_str(ctx) <<
+                //              " usr cell: " << usr.cell->name.c_str(ctx) <<
+                //              " port: " << ctx->nameOf(usr.port )<< std::endl;
                 nets.at(i).src_wire = src_wire;
                 if (ni->driver.cell == nullptr)
                     src_wire = dst_wire;
                 if (ni->driver.cell == nullptr && dst_wire == WireId())
                     continue;
+                // std::cerr << "====> src wire: " << ctx->nameOfWire(src_wire) << " dst wire: " << ctx->nameOfWire(dst_wire) << std::endl;
                 if (src_wire == WireId())
                     log_error("No wire found for port %s on source cell %s.\n", ctx->nameOf(ni->driver.port),
                               ctx->nameOf(ni->driver.cell));

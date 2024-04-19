@@ -69,8 +69,17 @@ void XC7Packer::pack_gt()
                     try_preplace(driver, ctx->id("I"));
                 }
             }
-
             ci->setParam(IdString(ctx, "_BOTH_GTREFCLK_USED"), Property(refclk0_used && refclk1_used));
+        } else if (ci->type == id_GTPE2_CHANNEL) {
+            for (auto &port : ci->ports) {
+                auto port_name = port.first.str(ctx);
+                if (boost::contains(port_name, "[") && boost::contains(port_name, "]")) {
+                    auto new_port_name = std::string(port_name);
+                    boost::replace_all(new_port_name, "[", "");
+                    boost::replace_all(new_port_name, "]", "");
+                    rename_port(ctx, ci, ctx->id(port_name), ctx->id(new_port_name));
+                }
+            }
         }
     }
 }
