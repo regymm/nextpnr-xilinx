@@ -71,6 +71,39 @@ void XC7Packer::pack_gt()
             }
             ci->setParam(IdString(ctx, "_BOTH_GTREFCLK_USED"), Property(refclk0_used && refclk1_used));
         } else if (ci->type == id_GTPE2_CHANNEL) {
+            fold_inverter(ci, "CLKRSVD0");
+            fold_inverter(ci, "CLKRSVD1");
+            fold_inverter(ci, "CPLLLOCKDETCLK");
+            fold_inverter(ci, "DMONITORCLK");
+            fold_inverter(ci, "DRPCLK");
+            fold_inverter(ci, "GTGREFCLK");
+            fold_inverter(ci, "RXUSRCLK2");
+            fold_inverter(ci, "RXUSRCLK");
+            fold_inverter(ci, "SIGVALIDCLK");
+            fold_inverter(ci, "TXPHDLYTSTCLK");
+            fold_inverter(ci, "TXUSRCLK2");
+            fold_inverter(ci, "TXUSRCLK");
+            fold_inverter(ci, "DRPCLK");
+            fold_inverter(ci, "GTGREFCLK");
+            fold_inverter(ci, "QPLLLOCKDETCLK");
+            fold_inverter(ci, "CLKRSVD0");
+            fold_inverter(ci, "CLKRSVD1");
+            fold_inverter(ci, "DMONITORCLK");
+            fold_inverter(ci, "DRPCLK");
+            fold_inverter(ci, "PMASCANCLK0");
+            fold_inverter(ci, "PMASCANCLK1");
+            fold_inverter(ci, "PMASCANCLK2");
+            fold_inverter(ci, "PMASCANCLK3");
+            fold_inverter(ci, "RXUSRCLK2");
+            fold_inverter(ci, "RXUSRCLK");
+            fold_inverter(ci, "SCANCLK");
+            fold_inverter(ci, "TSTCLK0");
+            fold_inverter(ci, "TSTCLK1");
+            fold_inverter(ci, "SIGVALIDCLK");
+            fold_inverter(ci, "TXPHDLYTSTCLK");
+            fold_inverter(ci, "TXUSRCLK2");
+            fold_inverter(ci, "TXUSRCLK");
+
             for (auto &port : ci->ports) {
                 auto port_name = port.first.str(ctx);
                 if (boost::contains(port_name, "[") && boost::contains(port_name, "]")) {
