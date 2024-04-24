@@ -2134,6 +2134,12 @@ struct FasmBackend
 
         write_bit("IN_USE");
 
+        auto write_str_bool = [&](std::string attribute, std::string bit, std::string deflt = "FALSE") {
+            auto val = str_or_default(ci->params, ctx->id(attribute), deflt);
+            boost::algorithm::to_upper(val);
+            write_bit(bit, val == "TRUE");
+        };
+
         auto acjtag_debug_mode = bool_or_default(ci->params, ctx->id("ACJTAG_DEBUG_MODE"), false);
         write_bit("ACJTAG_DEBUG_MODE[0]", acjtag_debug_mode);
         auto acjtag_mode = bool_or_default(ci->params, ctx->id("ACJTAG_MODE"), false);
@@ -2144,8 +2150,7 @@ struct FasmBackend
         auto adapt_cfg0 = int_or_default(ci->params, ctx->id("ADAPT_CFG0"), 0);
         write_int_vector("ADAPT_CFG0[19:0]", adapt_cfg0, 20);
 
-        auto align_comma_double = bool_or_default(ci->params, ctx->id("ALIGN_COMMA_DOUBLE"), false);
-        write_bit("ALIGN_COMMA_DOUBLE", align_comma_double);
+        write_str_bool("ALIGN_COMMA_DOUBLE", "ALIGN_COMMA_DOUBLE");
 
         auto align_comma_enable = int_or_default(ci->params, ctx->id("ALIGN_COMMA_ENABLE"), 0b1111111111);
         write_int_vector("ALIGN_COMMA_ENABLE[9:0]", align_comma_enable, 10);
@@ -2158,13 +2163,11 @@ struct FasmBackend
         else
             write_bit("ALIGN_COMMA_WORD[1]");
 
-        auto align_mcomma_det = bool_or_default(ci->params, ctx->id("ALIGN_MCOMMA_DET"), false);
-        write_bit("ALIGN_MCOMMA_DET", align_mcomma_det);
+        write_str_bool("ALIGN_MCOMMA_DET", "ALIGN_MCOMMA_DET");
         auto align_mcomma_value = int_or_default(ci->params, ctx->id("ALIGN_MCOMMA_VALUE"), 0b1010000011);
         write_int_vector("ALIGN_MCOMMA_VALUE[9:0]", align_mcomma_value, 10);
 
-        auto align_pcomma_det = bool_or_default(ci->params, ctx->id("ALIGN_PCOMMA_DET"), false);
-        write_bit("ALIGN_PCOMMA_DET", align_pcomma_det);
+        write_str_bool("ALIGN_PCOMMA_DET", "ALIGN_PCOMMA_DET");
         auto align_pcomma_value = int_or_default(ci->params, ctx->id("ALIGN_PCOMMA_VALUE"), 0b0101111100);
         write_int_vector("ALIGN_PCOMMA_VALUE[9:0]", align_pcomma_value, 10);
 
@@ -2184,8 +2187,7 @@ struct FasmBackend
         auto cfok_cfg6 = int_or_default(ci->params, ctx->id("CFOK_CFG6"), 0);
         write_int_vector("CFOK_CFG6[3:0]", cfok_cfg6, 4);
 
-        auto chan_bond_keep_align = bool_or_default(ci->params, ctx->id("CHAN_BOND_KEEP_ALIGN"), false);
-        write_bit("CHAN_BOND_KEEP_ALIGN", chan_bond_keep_align);
+        write_str_bool("CHAN_BOND_KEEP_ALIGN", "CHAN_BOND_KEEP_ALIGN");
         auto chan_bond_max_skew = int_or_default(ci->params, ctx->id("CHAN_BOND_MAX_SKEW"), 0);
         if (chan_bond_max_skew < 1 || 14 < chan_bond_max_skew)
             log_error("CHAN_BOND_MAX_SKEW may only range from 1 to 14, but is: %d\n", chan_bond_max_skew);
@@ -2202,8 +2204,7 @@ struct FasmBackend
         auto chan_bond_seq_1_4 = int_or_default(ci->params, ctx->id("CHAN_BOND_SEQ_1_4"), 0);
         write_int_vector("CHAN_BOND_SEQ_1_4[9:0]", chan_bond_seq_1_4, 10);
 
-        auto chan_bond_seq_2_use = bool_or_default(ci->params, ctx->id("CHAN_BOND_SEQ_2_USE"), false);
-        write_bit("CHAN_BOND_SEQ_2_USE", chan_bond_seq_2_use);
+        write_str_bool("CHAN_BOND_SEQ_2_USE", "CHAN_BOND_SEQ_2_USE");
         auto chan_bond_seq_2_enable = int_or_default(ci->params, ctx->id("CHAN_BOND_SEQ_2_ENABLE"), 0);
         write_int_vector("CHAN_BOND_SEQ_2_ENABLE[3:0]", chan_bond_seq_2_enable, 4);
         auto chan_bond_seq_2_1 = int_or_default(ci->params, ctx->id("CHAN_BOND_SEQ_2_1"), 0);
@@ -2222,14 +2223,12 @@ struct FasmBackend
 
         auto clk_common_swing = bool_or_default(ci->params, ctx->id("CLK_COMMON_SWING"), false);
         write_bit("CLK_COMMON_SWING[0]", clk_common_swing);
-        auto clk_cor_keep_idle = bool_or_default(ci->params, ctx->id("CLK_COR_KEEP_IDLE"), false);
-        write_bit("CLK_COR_KEEP_IDLE", clk_cor_keep_idle);
+        write_str_bool("CLK_COR_KEEP_IDLE", "CLK_COR_KEEP_IDLE");
         auto clk_cor_max_lat = int_or_default(ci->params, ctx->id("CLK_COR_MAX_LAT"), 0);
         write_int_vector("CLK_COR_MAX_LAT[5:0]", clk_cor_max_lat, 6);
         auto clk_cor_min_lat = int_or_default(ci->params, ctx->id("CLK_COR_MIN_LAT"), 0);
         write_int_vector("CLK_COR_MIN_LAT[5:0]", clk_cor_min_lat, 6);
-        auto clk_cor_precedence = bool_or_default(ci->params, ctx->id("CLK_COR_PRECEDENCE"), false);
-        write_bit("CLK_COR_PRECEDENCE", clk_cor_precedence);
+        write_str_bool("CLK_COR_PRECEDENCE", "CLK_COR_PRECEDENCE");
         auto clk_cor_repeat_wait = int_or_default(ci->params, ctx->id("CLK_COR_REPEAT_WAIT"), 0);
         write_int_vector("CLK_COR_REPEAT_WAIT[4:0]", clk_cor_repeat_wait, 5);
 
@@ -2244,8 +2243,7 @@ struct FasmBackend
         auto clk_cor_seq_1_4 = int_or_default(ci->params, ctx->id("CLK_COR_SEQ_1_4"), 0);
         write_int_vector("CLK_COR_SEQ_1_4[9:0]", clk_cor_seq_1_4, 10);
 
-        auto clk_cor_seq_2_use = bool_or_default(ci->params, ctx->id("CLK_COR_SEQ_2_USE"), false);
-        write_bit("CLK_COR_SEQ_2_USE", clk_cor_seq_2_use);
+        write_str_bool("CLK_COR_SEQ_2_USE", "CLK_COR_SEQ_2_USE");
         auto clk_cor_seq_2_enable = int_or_default(ci->params, ctx->id("CLK_COR_SEQ_2_ENABLE"), 0);
         write_int_vector("CLK_COR_SEQ_2_ENABLE[3:0]", clk_cor_seq_2_enable, 4);
         auto clk_cor_seq_2_1 = int_or_default(ci->params, ctx->id("CLK_COR_SEQ_2_1"), 0);
@@ -2262,15 +2260,11 @@ struct FasmBackend
             log_error("CLK_COR_SEQ_LEN may only range from 1 to 4, but is: %d\n", clk_cor_seq_len);
         write_int_vector("CLK_COR_SEQ_LEN[1:0]", clk_cor_seq_len - 1, 2);
 
-        auto clk_correct_use = bool_or_default(ci->params, ctx->id("CLK_CORRECT_USE"), false);
-        write_bit("CLK_CORRECT_USE", clk_correct_use);
+        write_str_bool("CLK_CORRECT_USE", "CLK_CORRECT_USE");
 
-        auto dec_mcomma_detect = bool_or_default(ci->params, ctx->id("DEC_MCOMMA_DETECT"), false);
-        write_bit("DEC_MCOMMA_DETECT", dec_mcomma_detect);
-        auto dec_pcomma_detect = bool_or_default(ci->params, ctx->id("DEC_PCOMMA_DETECT"), false);
-        write_bit("DEC_PCOMMA_DETECT", dec_pcomma_detect);
-        auto dec_valid_comma_only = bool_or_default(ci->params, ctx->id("DEC_VALID_COMMA_ONLY"), false);
-        write_bit("DEC_VALID_COMMA_ONLY", dec_valid_comma_only);
+        write_str_bool("DEC_MCOMMA_DETECT", "DEC_MCOMMA_DETECT");
+        write_str_bool("DEC_PCOMMA_DETECT", "DEC_PCOMMA_DETECT");
+        write_str_bool("DEC_VALID_COMMA_ONLY", "DEC_VALID_COMMA_ONLY");
 
         auto dmonitor_cfg = int_or_default(ci->params, ctx->id("DMONITOR_CFG"), 0x008101);
         write_int_vector("DMONITOR_CFG[23:0]", dmonitor_cfg, 24);
@@ -2279,10 +2273,8 @@ struct FasmBackend
         write_bit("ES_CLK_PHASE_SEL[0]", es_clk_phase_sel);
         auto es_control = int_or_default(ci->params, ctx->id("ES_CONTROL"), 0);
         write_int_vector("ES_CONTROL[5:0]", es_control, 6);
-        auto es_errdet_en = bool_or_default(ci->params, ctx->id("ES_ERRDET_EN"), false);
-        write_bit("ES_ERRDET_EN", es_errdet_en);
-        auto es_eye_scan_en = bool_or_default(ci->params, ctx->id("ES_EYE_SCAN_EN"), false);
-        write_bit("ES_EYE_SCAN_EN", es_eye_scan_en);
+        write_str_bool("ES_ERRDET_EN", "ES_ERRDET_EN");
+        write_str_bool("ES_EYE_SCAN_EN", "ES_EYE_SCAN_EN");
         auto es_pma_cfg = int_or_default(ci->params, ctx->id("ES_PMA_CFG"), 0);
         write_int_vector("ES_PMA_CFG[9:0]", es_pma_cfg, 10);
         auto es_prescale = int_or_default(ci->params, ctx->id("ES_PRESCALE"), 0);
@@ -2300,8 +2292,7 @@ struct FasmBackend
         write_int_vector("FTS_DESKEW_SEQ_ENABLE[3:0]", fts_deskew_seq_enable, 4);
         auto fts_lane_deskew_cfg = int_or_default(ci->params, ctx->id("FTS_LANE_DESKEW_CFG"), 0);
         write_int_vector("FTS_LANE_DESKEW_CFG[3:0]", fts_lane_deskew_cfg, 4);
-        auto fts_lane_deskew_en = bool_or_default(ci->params, ctx->id("FTS_LANE_DESKEW_EN"), false);
-        write_bit("FTS_LANE_DESKEW_EN", fts_lane_deskew_en);
+        write_str_bool("FTS_LANE_DESKEW_EN", "FTS_LANE_DESKEW_EN");
 
         auto gearbox_mode = int_or_default(ci->params, ctx->id("GEARBOX_MODE"), 0);
         write_int_vector("GEARBOX_MODE[2:0]", gearbox_mode, 3);
@@ -2327,8 +2318,7 @@ struct FasmBackend
         auto outrefclk_sel_inv = int_or_default(ci->params, ctx->id("OUTREFCLK_SEL_INV"), 0);
         write_int_vector("OUTREFCLK_SEL_INV[1:0]", outrefclk_sel_inv, 2);
 
-        auto pcs_pcie_en = bool_or_default(ci->params, ctx->id("PCS_PCIE_EN"), false);
-        write_bit("PCS_PCIE_EN", pcs_pcie_en);
+        write_str_bool("PCS_PCIE_EN", "PCS_PCIE_EN");
 
         auto rsvd_attr = int_or_default(ci->params, ctx->id("RSVD_ATTR"), 0);
         write_int_vector("RSVD_ATTR[47:0]", rsvd_attr, 48);
@@ -2374,10 +2364,8 @@ struct FasmBackend
         write_int_vector("RX_DDI_SEL[5:0]", rx_ddi_sel, 6);
         auto rx_debug_cfg = int_or_default(ci->params, ctx->id("RX_DEBUG_CFG"), 0);
         write_int_vector("RX_DEBUG_CFG[13:0]", rx_debug_cfg, 14);
-        auto rx_defer_reset_buf_en = bool_or_default(ci->params, ctx->id("RX_DEFER_RESET_BUF_EN"), false);
-        write_bit("RX_DEFER_RESET_BUF_EN", rx_defer_reset_buf_en);
-        auto rx_disperr_seq_match = bool_or_default(ci->params, ctx->id("RX_DISPERR_SEQ_MATCH"), false);
-        write_bit("RX_DISPERR_SEQ_MATCH", rx_disperr_seq_match);
+        write_str_bool("RX_DEFER_RESET_BUF_EN", "RX_DEFER_RESET_BUF_EN");
+        write_str_bool("RX_DISPERR_SEQ_MATCH", "RX_DISPERR_SEQ_MATCH");
         auto rx_os_cfg = int_or_default(ci->params, ctx->id("RX_OS_CFG"), 0);
         write_int_vector("RX_OS_CFG[12:0]", rx_os_cfg, 13);
         auto rx_sig_valid_dly = int_or_default(ci->params, ctx->id("RX_SIG_VALID_DLY"), 0);
@@ -2397,18 +2385,12 @@ struct FasmBackend
         write_int_vector("RXBUF_EIDLE_HI_CNT[3:0]", rxbuf_eidle_hi_cnt, 4);
         auto rxbuf_eidle_lo_cnt = int_or_default(ci->params, ctx->id("RXBUF_EIDLE_LO_CNT"), 0);
         write_int_vector("RXBUF_EIDLE_LO_CNT[3:0]", rxbuf_eidle_lo_cnt, 4);
-        auto rxbuf_en = bool_or_default(ci->params, ctx->id("RXBUF_EN"), true);
-        write_bit("RXBUF_EN", rxbuf_en);
-        auto rxbuf_reset_on_cb_change = bool_or_default(ci->params, ctx->id("RXBUF_RESET_ON_CB_CHANGE"), true);
-        write_bit("RXBUF_RESET_ON_CB_CHANGE", rxbuf_reset_on_cb_change);
-        auto rxbuf_reset_on_commaalign = bool_or_default(ci->params, ctx->id("RXBUF_RESET_ON_COMMAALIGN"), false);
-        write_bit("RXBUF_RESET_ON_COMMAALIGN", rxbuf_reset_on_commaalign);
-        auto rxbuf_reset_on_eidle = bool_or_default(ci->params, ctx->id("RXBUF_RESET_ON_EIDLE"), false);
-        write_bit("RXBUF_RESET_ON_EIDLE", rxbuf_reset_on_eidle);
-        auto rxbuf_reset_on_rate_change = bool_or_default(ci->params, ctx->id("RXBUF_RESET_ON_RATE_CHANGE"), true);
-        write_bit("RXBUF_RESET_ON_RATE_CHANGE", rxbuf_reset_on_rate_change);
-        auto rxbuf_thresh_ovrd = bool_or_default(ci->params, ctx->id("RXBUF_THRESH_OVRD"), false);
-        write_bit("RXBUF_THRESH_OVRD", rxbuf_thresh_ovrd);
+        write_str_bool("RXBUF_EN", "RXBUF_EN", "TRUE");
+        write_str_bool("RXBUF_RESET_ON_CB_CHANGE", "RXBUF_RESET_ON_CB_CHANGE", "TRUE");
+        write_str_bool("RXBUF_RESET_ON_COMMAALIGN", "RXBUF_RESET_ON_COMMAALIGN");
+        write_str_bool("RXBUF_RESET_ON_EIDLE", "RXBUF_RESET_ON_EIDLE");
+        write_str_bool("RXBUF_RESET_ON_RATE_CHANGE", "RXBUF_RESET_ON_RATE_CHANGE", "TRUE");
+        write_str_bool("RXBUF_THRESH_OVRD", "RXBUF_THRESH_OVRD");
         auto rxbuf_thresh_ovflw = int_or_default(ci->params, ctx->id("RXBUF_THRESH_OVFLW"), 0);
         write_int_vector("RXBUF_THRESH_OVFLW[5:0]", rxbuf_thresh_ovflw, 6);
         auto rxbuf_thresh_undflw = int_or_default(ci->params, ctx->id("RXBUF_THRESH_UNDFLW"), 0);
@@ -2438,8 +2420,7 @@ struct FasmBackend
         auto rxdly_tap_cfg = int_or_default(ci->params, ctx->id("RXDLY_TAP_CFG"), 0);
         write_int_vector("RXDLY_TAP_CFG[15:0]", rxdly_tap_cfg, 16);
 
-        auto rxgearbox_en = bool_or_default(ci->params, ctx->id("RXGEARBOX_EN"), false);
-        write_bit("RXGEARBOX_EN", rxgearbox_en);
+        write_str_bool("RXGEARBOX_EN", "RXGEARBOX_EN");
 
         auto rxiscanreset_time = int_or_default(ci->params, ctx->id("RXISCANRESET_TIME"), 0);
         write_int_vector("RXISCANRESET_TIME[4:0]", rxiscanreset_time, 5);
@@ -2560,8 +2541,7 @@ struct FasmBackend
         write_bit("SATA_PLL_CFG.VCO_1500MHZ", sata_pll_cfg == "VCO_1500MHZ");
         write_bit("SATA_PLL_CFG.VCO_750MHZ",  sata_pll_cfg == "VCO_750MHZ");
 
-        auto show_realign_comma = bool_or_default(ci->params, ctx->id("SHOW_REALIGN_COMMA"), false);
-        write_bit("SHOW_REALIGN_COMMA", show_realign_comma);
+        write_str_bool("SHOW_REALIGN_COMMA", "SHOW_REALIGN_COMMA");
 
         auto term_rcal_cfg = int_or_default(ci->params, ctx->id("TERM_RCAL_CFG"), 0);
         write_int_vector("TERM_RCAL_CFG[14:0]", term_rcal_cfg, 15);
@@ -2589,8 +2569,7 @@ struct FasmBackend
         auto eidle_deassert_delay = int_or_default(ci->params, ctx->id("EIDLE_DEASSERT_DELAY"), 0);
         write_int_vector("EIDLE_DEASSERT_DELAY[2:0]", eidle_deassert_delay, 3);
 
-        auto loopback_drive_hiz = bool_or_default(ci->params, ctx->id("LOOPBACK_DRIVE_HIZ"), false);
-        write_bit("LOOPBACK_DRIVE_HIZ", loopback_drive_hiz);
+        write_str_bool("LOOPBACK_DRIVE_HIZ", "LOOPBACK_DRIVE_HIZ");
 
         auto tx_maincursor_sel = bool_or_default(ci->params, ctx->id("TX_MAINCURSOR_SEL"), false);
         write_bit("TX_MAINCURSOR_SEL[0]", tx_maincursor_sel);
@@ -2630,18 +2609,15 @@ struct FasmBackend
         write_int_vector("TX_DEEMPH0[5:0]", tx_deemph0, 6);
         auto tx_deemph1 = int_or_default(ci->params, ctx->id("TX_DEEMPH1"), 0);
         write_int_vector("TX_DEEMPH1[5:0]", tx_deemph1, 6);
-        auto txbuf_en = bool_or_default(ci->params, ctx->id("TXBUF_EN"), true);
-        write_bit("TXBUF_EN", txbuf_en);
-        auto txbuf_reset_on_rate_change = bool_or_default(ci->params, ctx->id("TXBUF_RESET_ON_RATE_CHANGE"), true);
-        write_bit("TXBUF_RESET_ON_RATE_CHANGE", txbuf_reset_on_rate_change);
+        write_str_bool("TXBUF_EN", "TXBUF_EN");
+        write_str_bool("TXBUF_RESET_ON_RATE_CHANGE", "TXBUF_RESET_ON_RATE_CHANGE", "TRUE");
         auto txdly_cfg = int_or_default(ci->params, ctx->id("TXDLY_CFG"), 0);
         write_int_vector("TXDLY_CFG[15:0]", txdly_cfg, 16);
         auto txdly_lcfg = int_or_default(ci->params, ctx->id("TXDLY_LCFG"), 0);
         write_int_vector("TXDLY_LCFG[8:0]", txdly_lcfg, 9);
         auto txdly_tap_cfg = int_or_default(ci->params, ctx->id("TXDLY_TAP_CFG"), 0);
         write_int_vector("TXDLY_TAP_CFG[15:0]", txdly_tap_cfg, 16);
-        auto txgearbox_en = bool_or_default(ci->params, ctx->id("TXGEARBOX_EN"), false);
-        write_bit("TXGEARBOX_EN", txgearbox_en);
+        write_str_bool("TXGEARBOX_EN", "TXGEARBOX_EN");
         auto txoob_cfg = bool_or_default(ci->params, ctx->id("TXOOB_CFG"), false);
         write_bit("TXOOB_CFG[0]", txoob_cfg);
         auto txout_div = int_or_default(ci->params, ctx->id("TXOUT_DIV"), 0);
