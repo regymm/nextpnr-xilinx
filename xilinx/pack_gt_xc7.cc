@@ -106,6 +106,12 @@ void XC7Packer::pack_gt()
 
             for (auto &port : ci->ports) {
                 auto port_name = port.first.str(ctx);
+                // If one of the clock ports is tied, then Vivado just disconnects them
+                if (boost::starts_with(port_name, "PLL") && boost::ends_with(port_name, "CLK")) {
+                    auto net = get_net_or_empty(ci, port.first);
+                    if (net && (net->name == ctx->id("$PACKER_GND_NET") || net->name == ctx->id("$PACKER_VCC_NET")))
+                        disconnect_port(ctx, ci, port.first);
+                }
                 if (boost::contains(port_name, "[") && boost::contains(port_name, "]")) {
                     auto new_port_name = std::string(port_name);
                     boost::replace_all(new_port_name, "[", "");
