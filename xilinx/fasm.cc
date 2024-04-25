@@ -2055,6 +2055,7 @@ struct FasmBackend
         } else {
             push("GTPE2_COMMON");
             write_bit("IN_USE");
+            write_bit("ENABLE_DRP", bool_or_default(ci->params, ctx->id("_DRPCLK_USED"), false));
             write_bit("BOTH_GTREFCLK_USED", bool_or_default(ci->params, ctx->id("_BOTH_GTREFCLK_USED"), false));
             write_bit("GTREFCLK0_USED", bool_or_default(ci->params, ctx->id("_GTREFCLK0_USED"), false));
             write_bit("GTREFCLK1_USED", bool_or_default(ci->params, ctx->id("_GTREFCLK1_USED"), false));

@@ -45,14 +45,19 @@ void XC7Packer::pack_gt()
             for (auto &port : ci->ports) {
                 auto port_name = port.first.str(ctx);
                 auto port_net  = port.second.net;
+                bool used = port_net != nullptr &&
+                            port_net->name != ctx->id("$PACKER_VCC_NET") &&
+                            port_net->name != ctx->id("$PACKER_GND_NET");
 
-                if (boost::starts_with(port_name, "GTREFCLK")) {
+                if (port_name == "DRPCLK") {
+                    ci->setParam(ctx->id("_DRPCLK_USED"), Property(used));
+                } else if (boost::starts_with(port_name, "GTREFCLK")) {
                     if (boost::ends_with(port_name, "0")) {
-                        refclk0_used = true;
-                        ci->setParam(ctx->id("_GTREFCLK0_USED"), Property(refclk0_used));
+                            refclk0_used = used;
+                            ci->setParam(ctx->id("_GTREFCLK0_USED"), Property(used));
                     } else {
-                        refclk1_used = true;
-                        ci->setParam(ctx->id("_GTREFCLK1_USED"), Property(refclk1_used));
+                        refclk1_used = used;
+                        ci->setParam(ctx->id("_GTREFCLK1_USED"), Property(used));
                     }
 
                     CellInfo *driver = port_net->driver.cell;
