@@ -115,7 +115,7 @@ void XC7Packer::pack_dsps()
                 }
 
                 // prjxray has extra bits for these ports to hardwire them to VCC/GND
-                // as these seem to be interal to the tile,
+                // as these seem to be internal to the tile,
                 // this saves us from having to route those externally
                 if (boost::starts_with(n, "D") ||
                     boost::starts_with(n, "RSTD") ||
