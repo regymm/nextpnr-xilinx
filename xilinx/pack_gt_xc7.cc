@@ -23,6 +23,33 @@
 
 NEXTPNR_NAMESPACE_BEGIN
 
+std::string XC7Packer::get_gtp_site(const std::string &io_bel)
+{
+    std::cerr << "===> get gtp channel site io_bel: " << io_bel;
+    auto pad_type = io_bel.substr(0, io_bel.find('/'));
+    BelId ibc_bel;
+        ibc_bel = ctx->getBelByName(ctx->id(io_bel.substr(0, io_bel.find('/')) + pad_type));
+    std::queue<WireId> visit;
+    if (pad_type == "OPAD")
+        visit.push(ctx->getBelPinWire(ibc_bel, ctx->id("I")));
+    else
+        visit.push(ctx->getBelPinWire(ibc_bel, ctx->id("O")));
+
+    while (!visit.empty()) {
+        WireId cursor = visit.front();
+        visit.pop();
+        for (auto bp : ctx->getWireBelPins(cursor)) {
+            std::string site = ctx->getBelSite(bp.bel);
+            if (boost::starts_with(site, "GTPE2_CHANNEL") ||
+                boost::starts_with(site, "GTPE2_COMMON"))
+                return site;
+        }
+        for (auto pip : ctx->getPipsDownhill(cursor))
+            visit.push(ctx->getPipDstWire(pip));
+    }
+    NPNR_ASSERT_FALSE("failed to find GTPE2_CHANNEL");
+}
+
 void XC7Packer::pack_gt()
 {
     log_info("Packing GTP Transceivers..\n");
