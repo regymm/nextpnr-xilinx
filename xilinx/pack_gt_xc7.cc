@@ -47,14 +47,15 @@ void XC7Packer::constrain_gtp(CellInfo *pad_cell, CellInfo *gtp_cell)
     if (pad_cell->attrs.find(id_BEL) != pad_cell->attrs.end()) {
         auto pad_bel = pad_cell->attrs[id_BEL].as_string();
         auto gtp_site = get_gtp_site(pad_bel);
+        auto gtp_bel = gtp_site + "/" + gtp_cell->type.str(ctx);
         if (gtp_cell->attrs.find(id_BEL) != gtp_cell->attrs.end()) {
-            auto gtp_bel = gtp_cell->attrs[id_BEL];
-            if (gtp_bel != gtp_site)
+            auto existing_gtp_bel = gtp_cell->attrs[id_BEL];
+            if (existing_gtp_bel != gtp_bel)
                 log_error("Location of pad %s on %s conflicts with previous placement of %s on %s\n",
                     pad_cell->name.c_str(ctx), pad_bel.c_str(), gtp_cell->name.c_str(ctx), gtp_site.c_str());
             return;
         }
-        gtp_cell->attrs[id_BEL] = gtp_site;
+        gtp_cell->attrs[id_BEL] = gtp_bel;
         log_info("    Constraining '%s' to site '%s'\n", gtp_cell->name.c_str(ctx), gtp_site.c_str());
         std::string tile = get_tilename_by_sitename(ctx, gtp_site);
         log_info("    Tile '%s'\n", tile.c_str());

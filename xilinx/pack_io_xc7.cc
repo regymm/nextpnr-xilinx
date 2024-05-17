@@ -382,7 +382,6 @@ void XC7Packer::pack_io()
                 if (driver_cell != nullptr && driver_cell->type == ctx->id("GTPE2_CHANNEL")) {
                     packed_cells.insert(buf_cell->name);
                     constrain_gtp(pad_cell, driver_cell);
-                    packed_cells.insert(driver_cell->name);
                     continue;
                 }
             }
@@ -395,7 +394,6 @@ void XC7Packer::pack_io()
                 if (user_cell->type == ctx->id("GTPE2_CHANNEL")) {
                     packed_cells.insert(buf_cell->name);
                     constrain_gtp(pad_cell, user_cell);
-                    packed_cells.insert(user_cell->name);
                     continue;
                 }
             }
