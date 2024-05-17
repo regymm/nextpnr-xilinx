@@ -369,7 +369,7 @@ void XC7Packer::pack_io()
                 if (user_cell->type != id_GTPE2_COMMON)
                     log_error("IBUFDS_GTE2 instance %s output port must be connected to a GTPE2_COMMON instance, but is instead connected to an instance %s of type %s\n",
                         buf_cell->name.c_str(ctx), user_cell->name.c_str(ctx), user_cell->type.c_str(ctx));
-                // no need to constrain here, clock placing does it correctly
+                constrain_gtp(pad_cell, user_cell);
                 continue;
             } else log_error("IBUFDS_GTE2 instance %s output port is not connected, or connected to multiple cells\n", buf_cell->name.c_str(ctx));
         }
