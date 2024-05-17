@@ -9,6 +9,10 @@ import std.string;
 struct String {
 	char value[while(std::mem::read_unsigned($, 1) != 0x0)];
 	padding [4 - ($ % 4)];
+}[[sealed, format("format_string")]];
+
+fn format_string(String string) {
+	return string.value;
 };
 
 using offset = s32;
@@ -206,5 +210,5 @@ struct ChipInfoPOD {
     //NodeInfoPOD     Nodes[num_nodes]         @ RelPtr(addressof(nodes));
 };
 
-offset chipdb_offset @ 0x0;
+offset chipdb_offset @ 0x0 [[hidden]];
 ChipInfoPOD chipdb @RelPtr(addressof(chipdb_offset));
