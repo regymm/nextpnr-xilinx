@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <boost/optional.hpp>
+#include <boost/algorithm/string.hpp>
 #include <iterator>
 #include <queue>
 #include <unordered_set>
@@ -59,7 +60,7 @@ void XC7Packer::prepare_clocking()
             tie_port(ci, "S1", false, true);
             tie_port(ci, "IGNORE0", true, true);
         }
-        if (ci->attrs.count(ctx->id("BEL"))) {
+        if (!boost::starts_with(ci->type.str(ctx), "GTP") && ci->attrs.count(ctx->id("BEL"))) {
             auto bel_str = ci->attrs.at(ctx->id("BEL")).as_string();
             // std::cerr << "cell " << ci->name.c_str(ctx) << " getBelByName: " << bel_str << std::endl;
             used_bels.insert(ctx->getBelByName(ctx->id(bel_str)));

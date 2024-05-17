@@ -54,7 +54,7 @@ CellInfo *XC7Packer::insert_diffibuf(IdString name, IdString type, const std::ar
     return inbuf_ptr;
 }
 
-std::string get_tilename_by_sitename(Context *ctx, std::string site)
+std::string XC7Packer::get_tilename_by_sitename(Context *ctx, std::string site)
 {
     if (ctx->site_by_name.count(site)) {
         int tile, siteid;
@@ -310,7 +310,8 @@ void XC7Packer::pack_io()
             std::string tile = get_tilename_by_sitename(ctx, site);
             log_info("    Tile '%s'\n", tile.c_str());
             if (boost::starts_with(tile, "GTP_COMMON") || boost::starts_with(tile, "GTP_CHANNEL")) {
-                pad->attrs[id_BEL] = std::string(site + "/PAD");
+                auto pad_bel = std::string(site + "/PAD");
+                pad->attrs[id_BEL] = pad_bel;
             } else {
                 if (boost::starts_with(tile, "RIOB18_"))
                     pad->attrs[id_BEL] = std::string(site + "/IOB18/PAD");
@@ -354,36 +355,43 @@ void XC7Packer::pack_io()
     }
     // Decompose macro IO primitives to smaller primitives that map logically to the actual IO Bels
     for (auto &iob : pad_and_buf) {
-        auto cell = iob.second.cell;
+        auto pad_cell = iob.first;
+        auto buf_cell = iob.second.cell;
+
         // GTP pads do not the IO handling like regular IOs
         // std::cerr << "About to decompose cell " << cell->name.c_str(ctx) << " with type " << cell->type.c_str(ctx) << std::endl;
-        if (packed_cells.count(cell->name) || cell->type == ctx->id("IBUFDS_GTE2"))
+        if (packed_cells.count(buf_cell->name) || buf_cell->type == ctx->id("IBUFDS_GTE2"))
             continue;
 
         // This OBUF is integrated into the GTP channel pad and does not need placing
-        if (cell->type == ctx->id("OBUF")) {
-            auto net = cell->ports[ctx->id("I")].net;
+        if (buf_cell->type == ctx->id("OBUF")) {
+            auto net     = buf_cell->ports[ctx->id("I")].net;
             if (net != nullptr) {
                 auto driver_cell = net->driver.cell;
                 if (driver_cell != nullptr && driver_cell->type == ctx->id("GTPE2_CHANNEL")) {
-                    packed_cells.insert(cell->name);
+                    packed_cells.insert(buf_cell->name);
+                    constrain_gtp(pad_cell, driver_cell);
+                    packed_cells.insert(driver_cell->name);
                     continue;
                 }
             }
         }
         // This IBUF is integrated into the GTP channel pad and does not need placing
-        if (cell->type == ctx->id("IBUF")) {
-            auto net = cell->ports[ctx->id("O")].net;
+        if (buf_cell->type == ctx->id("IBUF")) {
+            auto net = buf_cell->ports[ctx->id("O")].net;
             if (net != nullptr && net->users.size() == 1) {
-                if (net->users[0].cell->type == ctx->id("GTPE2_CHANNEL")) {
-                    packed_cells.insert(cell->name);
+                auto user_cell = net->users[0].cell;
+                if (user_cell->type == ctx->id("GTPE2_CHANNEL")) {
+                    packed_cells.insert(buf_cell->name);
+                    constrain_gtp(pad_cell, user_cell);
+                    packed_cells.insert(user_cell->name);
                     continue;
                 }
             }
         }
 
-        decompose_iob(cell, true, str_or_default(iob.first->attrs, ctx->id("IOSTANDARD"), ""));
-        packed_cells.insert(cell->name);
+        decompose_iob(buf_cell, true, str_or_default(iob.first->attrs, ctx->id("IOSTANDARD"), ""));
+        packed_cells.insert(buf_cell->name);
     }
     flush_cells();
 
@@ -424,6 +432,8 @@ void XC7Packer::pack_io()
     std::unordered_map<IdString, XFormRule> rules;
     for (auto cell : sorted(ctx->cells)) {
         CellInfo *ci = cell.second;
+        // GTP bufs don't need transforming, they are hardwired
+        if (boost::starts_with(ci->type.str(ctx), "GTP")) continue;
         if (!ci->attrs.count(ctx->id("BEL")))
             continue;
         if (ci->type == id_PAD)

@@ -20,34 +20,45 @@
 
 #include <boost/algorithm/string.hpp>
 #include "pack.h"
+#include "icecream.hpp"
 
 NEXTPNR_NAMESPACE_BEGIN
 
 std::string XC7Packer::get_gtp_site(const std::string &io_bel)
 {
-    std::cerr << "===> get gtp channel site io_bel: " << io_bel;
-    auto pad_type = io_bel.substr(0, io_bel.find('/'));
-    BelId ibc_bel;
-        ibc_bel = ctx->getBelByName(ctx->id(io_bel.substr(0, io_bel.find('/')) + pad_type));
-    std::queue<WireId> visit;
-    if (pad_type == "OPAD")
-        visit.push(ctx->getBelPinWire(ibc_bel, ctx->id("I")));
-    else
-        visit.push(ctx->getBelPinWire(ibc_bel, ctx->id("O")));
+    auto pad_site = io_bel.substr(0, io_bel.find('/'));
 
-    while (!visit.empty()) {
-        WireId cursor = visit.front();
-        visit.pop();
-        for (auto bp : ctx->getWireBelPins(cursor)) {
-            std::string site = ctx->getBelSite(bp.bel);
-            if (boost::starts_with(site, "GTPE2_CHANNEL") ||
-                boost::starts_with(site, "GTPE2_COMMON"))
-                return site;
-        }
-        for (auto pip : ctx->getPipsDownhill(cursor))
-            visit.push(ctx->getPipDstWire(pip));
+    int tileid, siteid;
+    std::tie(tileid, siteid) = ctx->site_by_name.at(pad_site);
+    auto tile = &ctx->chip_info->tile_insts[tileid];
+    for (int s = 0; s < tile->num_sites; s++) {
+        auto site = &tile->site_insts[s];
+        auto site_name = std::string(site->name.get());
+        if (boost::starts_with(site_name, "GTP"))
+            return site_name;
     }
-    NPNR_ASSERT_FALSE("failed to find GTPE2_CHANNEL");
+
+    auto msg = std::string("failed to find GTP site for ") + io_bel;
+    NPNR_ASSERT_FALSE(msg.c_str());
+}
+
+void XC7Packer::constrain_gtp(CellInfo *pad_cell, CellInfo *gtp_cell)
+{
+    if (pad_cell->attrs.find(id_BEL) != pad_cell->attrs.end()) {
+        auto pad_bel = pad_cell->attrs[id_BEL].as_string();
+        auto gtp_site = get_gtp_site(pad_bel);
+        if (gtp_cell->attrs.find(id_BEL) != gtp_cell->attrs.end()) {
+            auto gtp_bel = gtp_cell->attrs[id_BEL];
+            if (gtp_bel != gtp_site)
+                log_error("Location of pad %s on %s conflicts with previous placement of %s on %s\n",
+                    pad_cell->name.c_str(ctx), pad_bel.c_str(), gtp_cell->name.c_str(ctx), gtp_site.c_str());
+            return;
+        }
+        gtp_cell->attrs[id_BEL] = gtp_site;
+        log_info("    Constraining '%s' to site '%s'\n", gtp_cell->name.c_str(ctx), gtp_site.c_str());
+        std::string tile = get_tilename_by_sitename(ctx, gtp_site);
+        log_info("    Tile '%s'\n", tile.c_str());
+    } else log_error("Pad cell %s has not been placed\n", pad_cell->name.c_str(ctx));
 }
 
 void XC7Packer::pack_gt()
@@ -98,7 +109,7 @@ void XC7Packer::pack_gt()
                                 driver->name.c_str(ctx), port_net->name.c_str(ctx));
                         }
 
-                    try_preplace(driver, ctx->id("I"));
+                    try_preplace(driver, ctx->id("I")); // TODO: constrain bel here
                 }
             }
             ci->setParam(IdString(ctx, "_BOTH_GTREFCLK_USED"), Property(refclk0_used && refclk1_used));
@@ -138,30 +149,30 @@ void XC7Packer::pack_gt()
 
             for (auto &port : ci->ports) {
                 auto port_name = port.first.str(ctx);
+                auto net = get_net_or_empty(ci, port.first);
+
                 // If one of the clock ports is tied, then Vivado just disconnects them
-                if (boost::starts_with(port_name, "PLL") && boost::ends_with(port_name, "CLK")) {
-                    auto net = get_net_or_empty(ci, port.first);
-                    if (net != nullptr) {
-                        if (net->name == ctx->id("$PACKER_GND_NET") || net->name == ctx->id("$PACKER_VCC_NET")) {
-                            disconnect_port(ctx, ci, port.first);
-                            continue;
-                        }
-                        auto driver = net->driver.cell;
-                        if (driver->type != id_GTPE2_COMMON)
-                            log_error("The clock input ports of the GTPE2_CHANNEL instance %s can only be driven "
-                                      "by the clock ouputs of a GTPE2_COMMON instance, but not %s\n",
-                                      ci->name.c_str(ctx), driver->type.c_str(ctx));
-                        auto drv_port = net->driver.port.str(ctx);
-                        auto port_prefix = port_name.substr(0, 4);
-                        auto port_suffix = port_name.substr(4);
-                        if (!boost::starts_with(drv_port, port_prefix) || !boost::ends_with(drv_port, port_suffix))
-                            log_error("The port %s of a GTPE2_CHANNEL instance can only be connected to the port %sOUT%s "
-                                      "of a GTPE2_COMMON instance, but not to %s.\n", port_name.c_str(), port_prefix.c_str(), port_suffix.c_str(),
-                                       drv_port.c_str());
-                        // These ports are hardwired. Disconnect
+                if (net != nullptr && boost::starts_with(port_name, "PLL") && boost::ends_with(port_name, "CLK")) {
+                    if (net->name == ctx->id("$PACKER_GND_NET") || net->name == ctx->id("$PACKER_VCC_NET")) {
                         disconnect_port(ctx, ci, port.first);
+                        continue;
                     }
+                    auto driver = net->driver.cell;
+                    if (driver->type != id_GTPE2_COMMON)
+                        log_error("The clock input ports of the GTPE2_CHANNEL instance %s can only be driven "
+                                    "by the clock ouputs of a GTPE2_COMMON instance, but not %s\n",
+                                    ci->name.c_str(ctx), driver->type.c_str(ctx));
+                    auto drv_port = net->driver.port.str(ctx);
+                    auto port_prefix = port_name.substr(0, 4);
+                    auto port_suffix = port_name.substr(4);
+                    if (!boost::starts_with(drv_port, port_prefix) || !boost::ends_with(drv_port, port_suffix))
+                        log_error("The port %s of a GTPE2_CHANNEL instance can only be connected to the port %sOUT%s "
+                                    "of a GTPE2_COMMON instance, but not to %s.\n", port_name.c_str(), port_prefix.c_str(), port_suffix.c_str(),
+                                    drv_port.c_str());
+                    // These ports are hardwired. Disconnect
+                    disconnect_port(ctx, ci, port.first);
                 }
+
                 if (boost::contains(port_name, "[") && boost::contains(port_name, "]")) {
                     auto new_port_name = std::string(port_name);
                     boost::replace_all(new_port_name, "[", "");
