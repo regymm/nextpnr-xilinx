@@ -358,14 +358,25 @@ void XC7Packer::pack_io()
         auto pad_cell = iob.first;
         auto buf_cell = iob.second.cell;
 
-        // GTP pads do not the IO handling like regular IOs
         // std::cerr << "About to decompose cell " << cell->name.c_str(ctx) << " with type " << cell->type.c_str(ctx) << std::endl;
-        if (packed_cells.count(buf_cell->name) || buf_cell->type == ctx->id("IBUFDS_GTE2"))
+        if (packed_cells.count(buf_cell->name))
             continue;
+
+        if (buf_cell->type == ctx->id("IBUFDS_GTE2")) {
+            auto net = buf_cell->ports[ctx->id("O")].net;
+            if (net != nullptr && net->users.size() == 1) {
+                auto user_cell = net->users[0].cell;
+                if (user_cell->type != id_GTPE2_COMMON)
+                    log_error("IBUFDS_GTE2 instance %s output port must be connected to a GTPE2_COMMON instance, but is instead connected to an instance %s of type %s\n",
+                        buf_cell->name.c_str(ctx), user_cell->name.c_str(ctx), user_cell->type.c_str(ctx));
+                // no need to constrain here, clock placing does it correctly
+                continue;
+            } else log_error("IBUFDS_GTE2 instance %s output port is not connected, or connected to multiple cells\n", buf_cell->name.c_str(ctx));
+        }
 
         // This OBUF is integrated into the GTP channel pad and does not need placing
         if (buf_cell->type == ctx->id("OBUF")) {
-            auto net     = buf_cell->ports[ctx->id("I")].net;
+            auto net = buf_cell->ports[ctx->id("I")].net;
             if (net != nullptr) {
                 auto driver_cell = net->driver.cell;
                 if (driver_cell != nullptr && driver_cell->type == ctx->id("GTPE2_CHANNEL")) {

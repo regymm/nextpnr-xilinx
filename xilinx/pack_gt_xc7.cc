@@ -108,8 +108,6 @@ void XC7Packer::pack_gt()
                             log_info("Driver %s of net %s is a IBUFDS_GTE2 block\n",
                                 driver->name.c_str(ctx), port_net->name.c_str(ctx));
                         }
-
-                    try_preplace(driver, ctx->id("I")); // TODO: constrain bel here
                 }
             }
             ci->setParam(IdString(ctx, "_BOTH_GTREFCLK_USED"), Property(refclk0_used && refclk1_used));
