@@ -42,11 +42,58 @@ std::string XC7Packer::get_gtp_site(const std::string &io_bel)
     NPNR_ASSERT_FALSE(msg.c_str());
 }
 
+void XC7Packer::constrain_ibufds_gtp_site(CellInfo *buf_cell, const std::string &io_bel)
+{
+    auto pad_site = io_bel.substr(0, io_bel.find('/'));
+
+    int tileid, siteid;
+    std::tie(tileid, siteid) = ctx->site_by_name.at(pad_site);
+    auto tile = &ctx->chip_info->tile_insts[tileid];
+
+    int32_t min_y = 0x7FFFFFFF;
+    int32_t max_y = 0;
+    int32_t pad_y = -1;
+
+    for (int s = 0; s < tile->num_sites; s++) {
+        auto site = &tile->site_insts[s];
+        auto site_name = std::string(site->name.get());
+        if (boost::starts_with(site_name, "IPAD_")) {
+            auto sy = site->site_y;
+            if(sy < min_y) min_y = sy;
+            if(max_y < sy) max_y = sy;
+            if (site_name == pad_site) pad_y = sy;
+        }
+    }
+
+    if (min_y >= max_y || pad_y < 0) {
+        auto msg = std::string("failed to find IBUFDS_GTPE2 site for ") + io_bel;
+        NPNR_ASSERT_FALSE(msg.c_str());
+    }
+
+    int32_t num_pads = max_y - min_y + 1;
+    NPNR_ASSERT_MSG(num_pads == 4, "A GTP_COMMON tile only should have four input pads");
+    auto buf_bel = std::string("IBUFDS_GTE2_X0Y" + std::to_string((pad_y - min_y) >> 1));
+
+    if (buf_cell->attrs.find(id_BEL) != buf_cell->attrs.end()) {
+        auto existing_buf_bel = buf_cell->attrs[id_BEL].as_string();
+        if (existing_buf_bel != buf_bel)
+            log_error("Location of IBUFDS_GTE2 %s on %s conflicts with previous placement on %s\n",
+                buf_cell->name.c_str(ctx), buf_bel.c_str(), existing_buf_bel.c_str());
+        return;
+    }
+
+    buf_cell->attrs[id_BEL] = buf_bel;
+    log_info("    Constraining '%s' to site '%s'\n", buf_cell->name.c_str(ctx), buf_bel.c_str());
+    log_info("    Tile '%s'\n", tile->name.get());
+}
+
 void XC7Packer::constrain_gtp(CellInfo *pad_cell, CellInfo *gtp_cell)
 {
     if (pad_cell->attrs.find(id_BEL) != pad_cell->attrs.end()) {
         auto pad_bel = pad_cell->attrs[id_BEL].as_string();
         auto gtp_site = get_gtp_site(pad_bel);
+        int tileid, siteid;
+        std::tie(tileid, siteid) = ctx->site_by_name.at(gtp_site);
         auto gtp_bel = gtp_site + "/" + gtp_cell->type.str(ctx);
         if (gtp_cell->attrs.find(id_BEL) != gtp_cell->attrs.end()) {
             auto existing_gtp_bel = gtp_cell->attrs[id_BEL];
@@ -59,6 +106,7 @@ void XC7Packer::constrain_gtp(CellInfo *pad_cell, CellInfo *gtp_cell)
         log_info("    Constraining '%s' to site '%s'\n", gtp_cell->name.c_str(ctx), gtp_site.c_str());
         std::string tile = get_tilename_by_sitename(ctx, gtp_site);
         log_info("    Tile '%s'\n", tile.c_str());
+
     } else log_error("Pad cell %s has not been placed\n", pad_cell->name.c_str(ctx));
 }
 

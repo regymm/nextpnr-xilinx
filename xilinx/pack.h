@@ -226,6 +226,7 @@ struct XC7Packer : public XilinxPacker
     std::string get_odelay_site(const std::string &io_bel);
     std::string get_idelay_site(const std::string &io_bel);
     std::string get_gtp_site(const std::string &io_bel);
+    void        constrain_ibufds_gtp_site(CellInfo *buf_cell, const std::string &io_bel);
     void        constrain_gtp(CellInfo *pad_cell, CellInfo *gtp_cell);
 
     // Call before packing constants

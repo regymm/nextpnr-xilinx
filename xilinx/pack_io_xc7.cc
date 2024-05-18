@@ -363,6 +363,7 @@ void XC7Packer::pack_io()
             continue;
 
         if (buf_cell->type == ctx->id("IBUFDS_GTE2")) {
+            constrain_ibufds_gtp_site(buf_cell, pad_cell->attrs[id_BEL].as_string());
             auto net = buf_cell->ports[ctx->id("O")].net;
             if (net != nullptr && net->users.size() == 1) {
                 auto user_cell = net->users[0].cell;
@@ -443,6 +444,7 @@ void XC7Packer::pack_io()
         CellInfo *ci = cell.second;
         // GTP bufs don't need transforming, they are hardwired
         if (boost::starts_with(ci->type.str(ctx), "GTP")) continue;
+        if (boost::starts_with(ci->type.str(ctx), "IBUFDS_GTE2")) continue;
         if (!ci->attrs.count(ctx->id("BEL")))
             continue;
         if (ci->type == id_PAD)
