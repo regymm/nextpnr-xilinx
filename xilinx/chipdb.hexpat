@@ -1,7 +1,8 @@
 // This is a WIP binary parser for the nextpnr-xilinx ChipDB using
 // the FOSS Hex Editor ImHex (https://imhex.werwolv.net)
 
-#pragma pattern_limit 0xffffff
+#pragma pattern_limit 0xffffffff
+#pragma array_limit 0xffffffff
 
 import std.core;
 import std.string;
@@ -22,6 +23,12 @@ fn RelPtr(u32 addr) {
     return addr + off * 4;
 };
 
+struct BelWirePOD {
+    s32 port;       // port name constid
+    s32 type;       // port type (IN/OUT/BIDIR)
+    s32 wire_index; // connected wire index in tile, or -1 if NA
+};
+
 struct BelInfoPOD {
     s32 name;        // bel name (in site) constid
     s32 type;        // compatible type name constid
@@ -30,6 +37,8 @@ struct BelInfoPOD {
 
     s32 num_bel_wires;
     offset bel_wires; // BelWirePOD
+    BelWirePOD BelWires[num_bel_wires] @ RelPtr(addressof(bel_wires));
+
     s16 z;
     s16 site;
     s16 site_variant; // some sites have alternative types
@@ -41,11 +50,22 @@ struct BelPortPOD {
     s32 port;
 };
 
+enum PipType : s16
+{
+    PIP_TILE_ROUTING = 0,
+    PIP_SITE_ENTRY = 1,
+    PIP_SITE_EXIT = 2,
+    PIP_SITE_INTERNAL = 3,
+    PIP_LUT_PERMUTATION = 4,
+    PIP_LUT_ROUTETHRU = 5,
+    PIP_CONST_DRIVER = 6,
+};
+
 struct PipInfoPOD {
     s32 src_index, dst_index;
     s32 timing_class;
     padding[2];
-    s16 flags;
+    PipType flags;
 
     s32 bel;          // name of bel containing pip
     s32 extra_data;   // for special pips like lut permutation
@@ -58,10 +78,11 @@ struct TileWireInfoPOD {
     s32 num_uphill, num_downhill;
     s32 timing_class;
     // Pip index inside tile
-    offset pips_uphill, pips_downhill; // s32
+    offset pips_uphill, pips_downhill; // s32 
     // Bel index inside tile
-    s32 num_bel_pins;
+    s32 num_bel_pins [[hidden]];
     offset bel_pins; // BelPortPOD
+    BelPortPOD BelPins[num_bel_pins] @ RelPtr(addressof(bel_pins));
 
     s16 site; // Site index in tile
     padding[2];
@@ -77,20 +98,24 @@ struct TileWireRefPOD {
 struct NodeInfoPOD {
     s32 num_tile_wires;
     s32 intent;
-    offset tile_wires; // TileWireRefPOD
+    offset tile_wires [[hidden]]; // TileWireRefPOD
+    TileWireRefPOD TileWires[num_tile_wires] @ RelPtr(addressof(tile_wires));
 };
 
 struct TileTypeInfoPOD {
     s32 type;
 
     s32 num_bels;
-    offset bel_data; // BelInfoPOD
+    offset bel_data [[hidden]]; // BelInfoPOD
+    BelInfoPOD BelData[num_bels] @ RelPtr(addressof(bel_data));
 
     s32 num_wires;
-    offset wire_data; // TileWireInfoPOD
+    offset wire_data [[hidden]]; // TileWireInfoPOD
+    TileWireInfoPOD WireData[num_wires] @ RelPtr(addressof(wire_data));
 
     s32 num_pips;
-    offset pip_data; // PipInfoPOD
+    offset pip_data [[hidden]]; // PipInfoPOD
+    PipInfoPOD PipData[num_pips] @ RelPtr(addressof(pip_data));
 
     // Cell timing data index
     s32 timing_index;
@@ -117,7 +142,8 @@ struct TileInstInfoPOD {
     // as they will never be nodal
     s32 num_tile_wires;
     // -1 if a tile-local wire; node index if nodal wire
-    offset tile_wire_to_node; // s32
+    offset tile_wire_to_node [[hidden]]; // s32
+    s32 TileWireToNode[num_tile_wires] @ RelPtr(addressof(tile_wire_to_node));
 
     // Site names must be per tile instance,
     // at least for now, due to differing coordinate systems
@@ -195,7 +221,7 @@ struct ChipInfoPOD {
     s32 num_tiles, num_tiletypes, num_nodes;
     offset tile_types [[hidden]]; // TileTypeInfoPOD
     offset tile_insts [[hidden]]; // TileInstInfoPOD
-    offset nodes; // NodeInfoPOD
+    offset nodes [[hidden]]; // NodeInfoPOD
 
     offset extra_constids [[hidden]]; // ConstIDDataPOD
     ConstIDDataPOD ExtraConstIDs @ RelPtr(addressof(extra_constids));
