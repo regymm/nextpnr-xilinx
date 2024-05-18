@@ -52,13 +52,13 @@ struct BelPortPOD {
 
 enum PipType : s16
 {
-    PIP_TILE_ROUTING = 0,
-    PIP_SITE_ENTRY = 1,
-    PIP_SITE_EXIT = 2,
-    PIP_SITE_INTERNAL = 3,
-    PIP_LUT_PERMUTATION = 4,
-    PIP_LUT_ROUTETHRU = 5,
-    PIP_CONST_DRIVER = 6,
+    TILE_ROUTING = 0,
+    SITE_ENTRY = 1,
+    SITE_EXIT = 2,
+    SITE_INTERNAL = 3,
+    LUT_PERMUTATION = 4,
+    LUT_ROUTETHRU = 5,
+    CONST_DRIVER = 6,
 };
 
 struct PipInfoPOD {
