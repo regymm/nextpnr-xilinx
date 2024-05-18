@@ -50,8 +50,10 @@ void XC7Packer::constrain_ibufds_gtp_site(CellInfo *buf_cell, const std::string 
     std::tie(tileid, siteid) = ctx->site_by_name.at(pad_site);
     auto tile = &ctx->chip_info->tile_insts[tileid];
 
-    int32_t min_y = 0x7FFFFFFF;
-    int32_t max_y = 0;
+    int32_t min_buf_y = 0x7FFFFFFF;
+    int32_t max_buf_y = 0;
+    int32_t min_pad_y = 0x7FFFFFFF;
+    int32_t max_pad_y = 0;
     int32_t pad_y = -1;
 
     for (int s = 0; s < tile->num_sites; s++) {
@@ -59,20 +61,30 @@ void XC7Packer::constrain_ibufds_gtp_site(CellInfo *buf_cell, const std::string 
         auto site_name = std::string(site->name.get());
         if (boost::starts_with(site_name, "IPAD_")) {
             auto sy = site->site_y;
-            if(sy < min_y) min_y = sy;
-            if(max_y < sy) max_y = sy;
+            if (sy < min_pad_y) min_pad_y = sy;
+            if (max_pad_y < sy) max_pad_y = sy;
             if (site_name == pad_site) pad_y = sy;
+        }
+        if (boost::starts_with(site_name, "IBUFDS_GTE2_")) {
+            auto sy = site->site_y;
+            if (sy < min_buf_y) min_buf_y = sy;
+            if (max_buf_y < sy) max_buf_y = sy;
         }
     }
 
-    if (min_y >= max_y || pad_y < 0) {
-        auto msg = std::string("failed to find IBUFDS_GTPE2 site for ") + io_bel;
-        NPNR_ASSERT_FALSE(msg.c_str());
+    if (pad_y < 0) {
+        auto msg = std::string("failed to find IBUFDS_GTPE2 site for ") + io_bel + "\n";
+        log_error(msg.c_str());
     }
 
-    int32_t num_pads = max_y - min_y + 1;
+    NPNR_ASSERT(min_pad_y < max_pad_y);
+    NPNR_ASSERT(min_buf_y < max_buf_y);
+
+    auto buf_y = min_buf_y + ((pad_y - min_pad_y) >> 1);
+
+    int32_t num_pads = max_pad_y - min_pad_y + 1;
     NPNR_ASSERT_MSG(num_pads == 4, "A GTP_COMMON tile only should have four input pads");
-    auto buf_bel = std::string("IBUFDS_GTE2_X0Y" + std::to_string((pad_y - min_y) >> 1));
+    auto buf_bel = std::string("IBUFDS_GTE2_X0Y" + std::to_string(buf_y)) + "/IBUFDS_GTE2";
 
     if (buf_cell->attrs.find(id_BEL) != buf_cell->attrs.end()) {
         auto existing_buf_bel = buf_cell->attrs[id_BEL].as_string();
