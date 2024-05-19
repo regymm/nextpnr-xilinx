@@ -200,7 +200,7 @@ Property Property::from_string(const std::string &s)
     Property p;
 
     size_t cursor = s.find_first_not_of("01xz");
-    if (cursor == std::string::npos) {
+    if (cursor == std::string::npos && s.size() <= 64) {
         p.str = std::string(s.rbegin(), s.rend());
         p.is_string = false;
         p.update_intval();
