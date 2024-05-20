@@ -2360,6 +2360,18 @@ struct FasmBackend
         auto rx_cm_trim = int_or_default(ci->params, ctx->id("RX_CM_TRIM"), 0);
         write_int_vector("RX_CM_TRIM[3:0]", rx_cm_trim, 4);
         auto rx_data_width = int_or_default(ci->params, ctx->id("RX_DATA_WIDTH"), 0);
+        switch (rx_data_width) {
+            case 16:
+                rx_data_width = 2; break;
+            case 20:
+                rx_data_width = 3; break;
+            case 32:
+                rx_data_width = 4; break;
+            case 40:
+                rx_data_width = 5; break;
+            default:
+                log_error("Invalid RX_DATA_WIDTH parameter '%d' for GTPE2_CHANNEL instance %s\n", rx_data_width, ci->name.c_str(ctx));
+        }
         write_int_vector("RX_DATA_WIDTH[2:0]", rx_data_width, 3);
         auto rx_ddi_sel = int_or_default(ci->params, ctx->id("RX_DDI_SEL"), 0);
         write_int_vector("RX_DDI_SEL[5:0]", rx_ddi_sel, 6);
@@ -2369,13 +2381,13 @@ struct FasmBackend
         write_str_bool("RX_DISPERR_SEQ_MATCH", "RX_DISPERR_SEQ_MATCH");
         auto rx_os_cfg = int_or_default(ci->params, ctx->id("RX_OS_CFG"), 0);
         write_int_vector("RX_OS_CFG[12:0]", rx_os_cfg, 13);
-        auto rx_sig_valid_dly = int_or_default(ci->params, ctx->id("RX_SIG_VALID_DLY"), 0);
+        auto rx_sig_valid_dly = int_or_default(ci->params, ctx->id("RX_SIG_VALID_DLY"), 0) - 1;
         write_int_vector("RX_SIG_VALID_DLY[4:0]", rx_sig_valid_dly, 5);
         auto rx_xclk_sel = str_or_default(ci->params, ctx->id("RX_XCLK_SEL"), "RXUSR");
         if (rx_xclk_sel != "RXUSR" && rx_xclk_sel != "RXREC")
             log_error("RX_XCLK_SEL may only have values 'RXREC' or 'RXUSR' but is: '%s'\n", rx_xclk_sel.c_str());
         write_bit("RX_XCLK_SEL.RXUSR", rx_xclk_sel == "RXUSR");
-        auto rx_clk25_div = int_or_default(ci->params, ctx->id("RX_CLK25_DIV"), 0);
+        auto rx_clk25_div = int_or_default(ci->params, ctx->id("RX_CLK25_DIV"), 0) - 1;
         write_int_vector("RX_CLK25_DIV[4:0]", rx_clk25_div, 5);
 
         auto rxbuf_addr_mode = str_or_default(ci->params, ctx->id("RXBUF_ADDR_MODE"), "PMA");
@@ -2471,7 +2483,7 @@ struct FasmBackend
         auto rxoscalreset_timeout = int_or_default(ci->params, ctx->id("RXOSCALRESET_TIMEOUT"), 0);
         write_int_vector("RXOSCALRESET_TIMEOUT[4:0]", rxoscalreset_timeout, 5);
 
-        auto rxout_div = int_or_default(ci->params, ctx->id("RXOUT_DIV"), 0);
+        auto rxout_div = std::log2(int_or_default(ci->params, ctx->id("RXOUT_DIV"), 1));
         write_int_vector("RXOUT_DIV[1:0]", rxout_div, 2);
 
         auto rxpcsreset_time = int_or_default(ci->params, ctx->id("RXPCSRESET_TIME"), 0);
@@ -2558,6 +2570,18 @@ struct FasmBackend
         auto tx_clkmux_en = bool_or_default(ci->params, ctx->id("TX_CLKMUX_EN"), false);
         write_bit("TX_CLKMUX_EN[0]", tx_clkmux_en);
         auto tx_data_width = int_or_default(ci->params, ctx->id("TX_DATA_WIDTH"), 0);
+        switch (tx_data_width) {
+            case 16:
+                tx_data_width = 2; break;
+            case 20:
+                tx_data_width = 3; break;
+            case 32:
+                tx_data_width = 4; break;
+            case 40:
+                tx_data_width = 5; break;
+            default:
+                log_error("Invalid TX_DATA_WIDTH parameter '%d' for GTPE2_CHANNEL instance %s\n", tx_data_width, ci->name.c_str(ctx));
+        }
         write_int_vector("TX_DATA_WIDTH[2:0]", tx_data_width, 3);
 
         auto tx_drive_mode = str_or_default(ci->params, ctx->id("TX_DRIVE_MODE"), "DIRECT");
@@ -2565,10 +2589,10 @@ struct FasmBackend
             log_error("TX_DRIVE_MODE may only have values 'PIPE' or 'DIRECT' but is: '%s'\n", tx_drive_mode.c_str());
         write_bit("TX_DRIVE_MODE.PIPE", tx_drive_mode == "PIPE");
 
-        auto eidle_assert_delay = int_or_default(ci->params, ctx->id("EIDLE_ASSERT_DELAY"), 0);
-        write_int_vector("EIDLE_ASSERT_DELAY[2:0]", eidle_assert_delay, 3);
-        auto eidle_deassert_delay = int_or_default(ci->params, ctx->id("EIDLE_DEASSERT_DELAY"), 0);
-        write_int_vector("EIDLE_DEASSERT_DELAY[2:0]", eidle_deassert_delay, 3);
+        auto tx_eidle_assert_delay = int_or_default(ci->params, ctx->id("TX_EIDLE_ASSERT_DELAY"), 0);
+        write_int_vector("TX_EIDLE_ASSERT_DELAY[2:0]", tx_eidle_assert_delay, 3);
+        auto tx_eidle_deassert_delay = int_or_default(ci->params, ctx->id("TX_EIDLE_DEASSERT_DELAY"), 0);
+        write_int_vector("TX_EIDLE_DEASSERT_DELAY[2:0]", tx_eidle_deassert_delay, 3);
 
         write_str_bool("LOOPBACK_DRIVE_HIZ", "LOOPBACK_DRIVE_HIZ");
 
@@ -2604,7 +2628,7 @@ struct FasmBackend
         if (tx_xclk_sel != "TXUSR" && tx_xclk_sel != "TXOUT")
             log_error("TX_XCLK_SEL may only have values 'TXOUT' or 'TXUSR' but is: '%s'\n", tx_xclk_sel.c_str());
         write_bit("TX_XCLK_SEL.TXUSR", tx_xclk_sel == "TXUSR");
-        auto tx_clk25_div = int_or_default(ci->params, ctx->id("TX_CLK25_DIV"), 0);
+        auto tx_clk25_div = int_or_default(ci->params, ctx->id("TX_CLK25_DIV"), 0) - 1;
         write_int_vector("TX_CLK25_DIV[4:0]", tx_clk25_div, 5);
         auto tx_deemph0 = int_or_default(ci->params, ctx->id("TX_DEEMPH0"), 0);
         write_int_vector("TX_DEEMPH0[5:0]", tx_deemph0, 6);
@@ -2621,7 +2645,7 @@ struct FasmBackend
         write_str_bool("TXGEARBOX_EN", "TXGEARBOX_EN");
         auto txoob_cfg = bool_or_default(ci->params, ctx->id("TXOOB_CFG"), false);
         write_bit("TXOOB_CFG[0]", txoob_cfg);
-        auto txout_div = int_or_default(ci->params, ctx->id("TXOUT_DIV"), 0);
+        auto txout_div = std::log2(int_or_default(ci->params, ctx->id("TXOUT_DIV"), 1));
         write_int_vector("TXOUT_DIV[1:0]", txout_div, 2);
         auto txpcsreset_time = int_or_default(ci->params, ctx->id("TXPCSRESET_TIME"), 0);
         write_int_vector("TXPCSRESET_TIME[4:0]", txpcsreset_time, 5);
