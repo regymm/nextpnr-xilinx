@@ -132,7 +132,7 @@ void XC7Packer::pack_gt()
 
         if (ci->type == id_GTPE2_COMMON) {
             all_plls.push_back(ci);
-            bool refclk0_used, refclk1_used;
+            bool refclk0_used = false, refclk1_used = false;
 
             fold_inverter(ci, "DRPCLK");
             fold_inverter(ci, "PLL0LOCKDETCLK");
