@@ -79,7 +79,8 @@ void XC7Packer::constrain_ibufds_gtp_site(CellInfo *buf_cell, const std::string 
     NPNR_ASSERT(min_pad_y < max_pad_y);
     NPNR_ASSERT(min_buf_y < max_buf_y);
 
-    auto buf_y = min_buf_y + ((pad_y - min_pad_y) >> 1);
+    auto rel_buf_y = (pad_y - min_pad_y) >> 1;
+    auto buf_y = min_buf_y + rel_buf_y;
 
     int32_t num_pads = max_pad_y - min_pad_y + 1;
     NPNR_ASSERT_MSG(num_pads == 4, "A GTP_COMMON tile only should have four input pads");
@@ -94,6 +95,7 @@ void XC7Packer::constrain_ibufds_gtp_site(CellInfo *buf_cell, const std::string 
     }
 
     buf_cell->attrs[id_BEL] = buf_bel;
+    buf_cell->attrs[ctx->id("_REL_BUF_Y")] = Property(rel_buf_y);
     log_info("    Constraining '%s' to site '%s'\n", buf_cell->name.c_str(ctx), buf_bel.c_str());
     log_info("    Tile '%s'\n", tile->name.get());
 }
@@ -132,6 +134,8 @@ void XC7Packer::pack_gt()
 
         if (ci->type == id_GTPE2_COMMON) {
             all_plls.push_back(ci);
+            const IdString refclk0_used_attr = ctx->id("_GTREFCLK0_USED"),
+                           refclk1_used_attr = ctx->id("_GTREFCLK1_USED");
             bool refclk0_used = false, refclk1_used = false;
 
             fold_inverter(ci, "DRPCLK");
@@ -150,24 +154,43 @@ void XC7Packer::pack_gt()
                 if (port_name == "DRPCLK") {
                     ci->setParam(ctx->id("_DRPCLK_USED"), Property(used));
                 } else if (boost::starts_with(port_name, "GTREFCLK")) {
-                    if (boost::ends_with(port_name, "0")) {
-                            refclk0_used = used;
-                            ci->setParam(ctx->id("_GTREFCLK0_USED"), Property(used));
-                    } else {
-                        refclk1_used = used;
-                        ci->setParam(ctx->id("_GTREFCLK1_USED"), Property(used));
-                    }
-
                     CellInfo *driver = port_net->driver.cell;
                     if (driver == nullptr) log_error("Port %s connected to net %s has no driver!", port_name.c_str(), port_net->name.c_str(ctx));
                     if (driver->type != id_IBUFDS_GTE2) {
                         log_warning("Driver %s of net %s is not a IBUFDS_GTE2 block, but %s\n",
                             driver->name.c_str(ctx), port_net->name.c_str(ctx), driver->type.c_str(ctx));
                             continue;
-                        } else {
+                        } else { // driver is IBUFDS_GTE2
                             log_info("Driver %s of net %s is a IBUFDS_GTE2 block\n",
                                 driver->name.c_str(ctx), port_net->name.c_str(ctx));
+                            if (used) {
+                                auto rel_buf_y = driver->attrs[ctx->id("_REL_BUF_Y")].as_int64();
+                                // replicate Vivado's behavior here:
+                                // since GTREFCLK0 is hardwired to the lower IBUFDS_GTE2
+                                // and GTREFCLK1 is hardwired to the upper buffer
+                                // the used flags activate those inputs
+                                // the don't need to be routed, so we just disconnect the port here
+                                disconnect_port(ctx, ci, port.first);
+                                if (rel_buf_y == 1) {
+                                    refclk1_used = true;
+                                    ci->setParam(refclk1_used_attr, Property(1, 1));
+                                } else {
+                                    refclk0_used = true;
+                                    ci->setParam(refclk0_used_attr, Property(1, 1));
+                                }
+                                continue;
+                            }
                         }
+
+                    // if we could not determine refclk input by IBUFDS_GTE2 location
+                    // then we just use whatever port is connected
+                    if (boost::ends_with(port_name, "0")) {
+                        refclk0_used = used;
+                        ci->setParam(refclk0_used_attr, Property(used));
+                    } else {
+                        refclk1_used = used;
+                        ci->setParam(refclk1_used_attr, Property(used));
+                    }
                 }
             }
             ci->setParam(ctx->id("_BOTH_GTREFCLK_USED"), Property(refclk0_used && refclk1_used));
