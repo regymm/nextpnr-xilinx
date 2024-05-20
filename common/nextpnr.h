@@ -354,9 +354,10 @@ struct Property
     {
         std::vector<bool> result;
         result.reserve(str.size());
-        NPNR_ASSERT(!is_string);
-        for (auto c : str)
+        for (auto c : str) {
+            NPNR_ASSERT(c == S0 || c == S1);
             result.push_back(c == S1);
+        }
         return result;
     }
     std::string as_string() const

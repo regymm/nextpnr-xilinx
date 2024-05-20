@@ -200,10 +200,13 @@ Property Property::from_string(const std::string &s)
     Property p;
 
     size_t cursor = s.find_first_not_of("01xz");
-    if (cursor == std::string::npos && s.size() <= 64) {
-        p.str = std::string(s.rbegin(), s.rend());
-        p.is_string = false;
-        p.update_intval();
+    if (cursor == std::string::npos) {
+        // if it fits into an int64_t make it a number
+        if (s.size() <= 64) {
+            p.str = std::string(s.rbegin(), s.rend());
+            p.is_string = false;
+            p.update_intval();
+        } else p = Property(s); // ... and a string Property otherwise
     } else if (s.find_first_not_of(' ', cursor) == std::string::npos) {
         p = Property(s.substr(0, s.size() - 1));
     } else {

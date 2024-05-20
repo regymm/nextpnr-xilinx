@@ -71,12 +71,17 @@ struct FasmBackend
         }
     }
 
-    void write_vector(const std::string &name, const std::vector<bool> &value, bool invert = false)
+    void write_vector(const std::string &name, const std::vector<bool> &value, bool invert = false, bool reverse = true)
     {
         write_prefix();
         out << name << " = " << int(value.size()) << "'b";
-        for (auto bit : boost::adaptors::reverse(value))
-            out << ((bit ^ invert) ? '1' : '0');
+        if (reverse) {
+            for (auto bit : boost::adaptors::reverse(value))
+                out << ((bit ^ invert) ? '1' : '0');
+        } else {
+            for (auto bit : value)
+                out << ((bit ^ invert) ? '1' : '0');
+        }
         out << std::endl;
     }
 
