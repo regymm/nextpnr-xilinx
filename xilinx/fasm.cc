@@ -2180,7 +2180,7 @@ struct FasmBackend
         auto cbcc_data_source_sel = str_or_default(ci->params, ctx->id("CBCC_DATA_SOURCE_SEL"), "DECODED");
         if (cbcc_data_source_sel == "DECODED") write_bit("CBCC_DATA_SOURCE_SEL.DECODED");
 
-        auto cfok_cfg = int_or_default(ci->params, ctx->id("CFOK_CFG"), 0);
+        auto cfok_cfg = get_or_default(ci->params, ctx->id("CFOK_CFG"), Property(int64_t(0))).as_int64();
         write_int_vector("CFOK_CFG[42:0]", cfok_cfg, 43);
         auto cfok_cfg2 = int_or_default(ci->params, ctx->id("CFOK_CFG2"), 0);
         write_int_vector("CFOK_CFG2[6:0]", cfok_cfg2, 7);
@@ -2416,8 +2416,9 @@ struct FasmBackend
         auto rxbufreset_time = int_or_default(ci->params, ctx->id("RXBUFRESET_TIME"), 0);
         write_int_vector("RXBUFRESET_TIME[4:0]", rxbufreset_time, 5);
 
-        auto rxcdr_cfg = int_or_default(ci->params, ctx->id("RXCDR_CFG"), 0);
-        write_int_vector("RXCDR_CFG[82:0]", rxcdr_cfg, 83);
+        auto rxcdr_cfg = get_or_default(ci->params, ctx->id("RXCDR_CFG"),
+            Property("00000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
+        write_vector("RXCDR_CFG[82:0]", rxcdr_cfg.as_bits(), false, false);
         auto rxcdr_fr_reset_on_eidle = bool_or_default(ci->params, ctx->id("RXCDR_FR_RESET_ON_EIDLE"), false);
         write_bit("RXCDR_FR_RESET_ON_EIDLE[0]", rxcdr_fr_reset_on_eidle);
         auto rxcdr_ph_reset_on_eidle = bool_or_default(ci->params, ctx->id("RXCDR_PH_RESET_ON_EIDLE"), false);
