@@ -212,6 +212,10 @@ struct TimingDataPOD {
     offset pip_timing_classes; // PipTimingPOD
 };
 
+struct TileRow {
+    TileInstInfoPOD TileColumns[parent.width];
+};
+
 struct ChipInfoPOD {
     offset name [[hidden]]; // char
     offset generator [[hidden]]; // char
@@ -232,7 +236,8 @@ struct ChipInfoPOD {
     String Name                              @ RelPtr(addressof(name));
     String Generator                         @ RelPtr(addressof(generator));
     TileTypeInfoPOD TileTypes[num_tiletypes] @ RelPtr(addressof(tile_types));
-    TileInstInfoPOD TileInsts[num_tiles]     @ RelPtr(addressof(tile_insts));
+    //TileInstInfoPOD TileInsts[num_tiles]     @ RelPtr(addressof(tile_insts));
+    TileRow         TileRows[height]         @ RelPtr(addressof(tile_insts));
     //NodeInfoPOD     Nodes[num_nodes]         @ RelPtr(addressof(nodes));
 };
 
