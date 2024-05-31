@@ -69,7 +69,7 @@ enum ConstIds
 struct BelId
 {
     int32_t tile = -1;
-    // PIP index in tile
+    // site index in tile
     int32_t index = -1;
 
     bool operator==(const BelId &other) const { return tile == other.tile && index == other.index; }
