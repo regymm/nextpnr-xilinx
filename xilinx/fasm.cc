@@ -1278,6 +1278,16 @@ struct FasmBackend
                 write_bit("ZINV_S0", !bool_or_default(ci->params, ctx->id("IS_S0_INVERTED")));
                 write_bit("ZINV_S1", !bool_or_default(ci->params, ctx->id("IS_S1_INVERTED")));
                 pop(2);
+            } else if (ci->type == ctx->id("BUFHCE")) {
+                push(get_tile_name(ci->bel.tile));
+                auto xy = ctx->getSiteLocInTile(ci->bel);
+                push("BUFHCE.BUFHCE_X" + std::to_string(xy.x) + "Y" + std::to_string(xy.y));
+                write_bit("IN_USE");
+                auto ce_type = str_or_default(ci->params, ctx->id("CE_TYPE"), "SYNC");
+                write_bit("CE_TYPE.ASYNC", ce_type == "ASYNC");
+                write_bit("INIT_OUT", bool_or_default(ci->params, ctx->id("INIT_OUT")));
+                write_bit("ZINV_CE", !bool_or_default(ci->params, ctx->id("IS_CE_INVERTED")));
+                pop(2);
             } else if (ci->type == ctx->id("PLLE2_ADV_PLLE2_ADV")) {
                 write_pll(ci);
             } else if (ci->type == ctx->id("MMCME2_ADV_MMCME2_ADV")) {

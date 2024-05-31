@@ -1582,6 +1582,35 @@ struct Arch : BaseCtx
         return tt;
     }
 
+    Loc getTileLocation(int tile) const
+    {
+        NPNR_ASSERT(0 <= tile);
+        Loc loc;
+        loc.x = tile % chip_info->width;
+        loc.y = tile / chip_info->width;
+        return loc;
+    }
+
+    const TileInstInfoPOD &getTileByLocation(int x, int y) const
+    {
+        NPNR_ASSERT(0 <= x && 0 <= y);
+        auto tile_index = y * chip_info->width + x;
+        NPNR_ASSERT(tile_index < chip_info->width * chip_info->height);
+        return chip_info->tile_insts[tile_index];
+    }
+
+    const TileInstInfoPOD &getTileByIndex(int index) const
+    {
+        NPNR_ASSERT(0 <= index);
+        NPNR_ASSERT(index < chip_info->num_tiles);
+        return chip_info->tile_insts[index];
+    }
+
+    const IdString getTileType(const TileInstInfoPOD &tile_inst) const
+    {
+        return IdString(chip_info->tile_types[tile_inst.type].type);
+    }
+
     // -------------------------------------------------
     // Assign architecure-specific arguments to nets and cells, which must be
     // called between packing or further
@@ -1604,11 +1633,16 @@ struct Arch : BaseCtx
     std::string getBelPackagePin(BelId bel) const;
     std::string getBelSite(BelId bel) const
     {
+        auto &site = getBelSiteRef(bel);
+        return site.name.get();
+    }
+
+    const SiteInstInfoPOD &getBelSiteRef(BelId bel) const
+    {
         int s = locInfo(bel).bel_data[bel.index].site;
         NPNR_ASSERT(s != -1);
         auto &tile = chip_info->tile_insts[bel.tile];
-        auto &site = tile.site_insts[s];
-        return site.name.get();
+        return tile.site_insts[s];
     }
 
     int getHclkForIob(BelId pad);

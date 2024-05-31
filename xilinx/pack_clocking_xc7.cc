@@ -59,11 +59,9 @@ void XC7Packer::prepare_clocking()
             tie_port(ci, "S0", true, true);
             tie_port(ci, "S1", false, true);
             tie_port(ci, "IGNORE0", true, true);
-        }
-        if (!boost::starts_with(ci->type.str(ctx), "GTP") && ci->attrs.count(ctx->id("BEL"))) {
-            auto bel_str = ci->attrs.at(ctx->id("BEL")).as_string();
-            // std::cerr << "cell " << ci->name.c_str(ctx) << " getBelByName: " << bel_str << std::endl;
-            used_bels.insert(ctx->getBelByName(ctx->id(bel_str)));
+        } else if (ci->type == id_BUFH || ci->type == id_BUFHCE) {
+            ci->type = id_BUFHCE_BUFHCE;
+            tie_port(ci, "CE", true, true);
         }
     }
 }
@@ -126,10 +124,12 @@ void XC7Packer::pack_gbs()
     // Preplace global buffers to make use of dedicated/short routing
     for (auto cell : sorted(ctx->cells)) {
         CellInfo *ci = cell.second;
-        if (ci->type == ctx->id("BUFGCTRL"))
-            try_preplace(ci, ctx->id("I0"));
-        if (ci->type == ctx->id("BUFG_BUFG"))
-            try_preplace(ci, ctx->id("I"));
+        if (ci->type == id_BUFGCTRL)
+            try_preplace(ci, id_I0);
+        if (ci->type == id_BUFG_BUFG)
+            try_preplace(ci, id_I);
+        if (ci->type == id_BUFHCE_BUFHCE)
+            try_preplace(ci, id_I);
     }
 }
 
