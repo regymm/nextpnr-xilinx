@@ -174,6 +174,7 @@ void XC7Packer::constrain_bufhce_gtp_common(CellInfo *bufhce_cell, CellInfo *gtp
         auto &site = tile.site_insts[s];
         if (site.site_x != bufh_x) continue;
         if (used_bels.count(bel)) continue;
+        if (!ctx->checkBelAvail(bel)) continue;
         auto bel_name = ctx->getBelName(bel);
         if (!boost::ends_with(bel_name.str(ctx), "/BUFHCE")) continue;
         bufhce_cell->attrs[id_BEL] = Property(bel_name.str(ctx));
