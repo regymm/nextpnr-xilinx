@@ -754,24 +754,29 @@ void Arch::routeClock()
         auto clk_driver = clk_net->driver;
         if (clk_driver.cell == nullptr)
             continue;
-        auto cell_type = clk_driver.cell->type;
+        auto driver_type = clk_driver.cell->type;
         auto no_users = clk_net->users.size();
         auto clk_net_user = no_users == 1 ? clk_net->users.front().cell : nullptr;
         auto clk_net_user_type = clk_net_user == nullptr ? IdString() : clk_net_user->type;
-        auto from_pll_or_mmcm = cell_type == id("PLLE2_ADV_PLLE2_ADV") || cell_type == id("MMCME2_ADV_MMCME2_ADV");
-        auto to_pll_or_mmcm = clk_net_user_type == id("PLLE2_ADV_PLLE2_ADV") || clk_net_user_type == id("MMCME2_ADV_MMCME2_ADV");
+        auto from_pll_or_mmcm =
+            driver_type == id_PLLE2_ADV_PLLE2_ADV ||
+            driver_type == id_MMCME2_ADV_MMCME2_ADV;
+        auto to_pll_or_mmcm =
+            clk_net_user_type == id_PLLE2_ADV_PLLE2_ADV ||
+            clk_net_user_type == id_MMCME2_ADV_MMCME2_ADV;
+        auto to_pll_mmcm_clkin1 = to_pll_or_mmcm && clk_net->users.front().port == id_CLKIN1;
 
         // check if we have a global clock net, skip otherwise
         bool is_global = false;
-        if ((cell_type == id_BUFGCTRL    || cell_type == id_BUFCE_BUFG_PS ||
-             cell_type == id_BUFCE_BUFCE || cell_type == id_BUFGCE_DIV_BUFGCE_DIV) &&
-            clk_driver.port == id("O"))
+        if ((driver_type == id_BUFGCTRL    || driver_type == id_BUFCE_BUFG_PS ||
+                  driver_type == id_BUFCE_BUFCE || driver_type == id_BUFGCE_DIV_BUFGCE_DIV) &&
+            clk_driver.port == id_O)
             is_global = true;
         else if (no_users == 1 && from_pll_or_mmcm &&
                  (clk_net_user_type == id_BUFGCTRL || clk_net_user_type == id_BUFCE_BUFCE ||
                   clk_net_user_type == id_BUFGCE_DIV_BUFGCE_DIV))
             is_global = true;
-        else if (to_pll_or_mmcm && clk_net->users.front().port == id("CLKIN1"))
+        else if (to_pll_mmcm_clkin1)
             is_global = true;
         if (!is_global)
             continue;
@@ -801,11 +806,15 @@ void Arch::routeClock()
                     break;
                 }
                 for (auto uh : getPipsUphill(curr)) {
-                    if (!checkPipAvail(uh))
+                    if (!checkPipAvail(uh)) {
+                        if (getCtx()->debug) log_info("            skipping unavailable pip %s\n", getPipName(uh).c_str(this));
                         continue;
+                    }
                     WireId src = getPipSrcWire(uh);
-                    if (backtrace.count(src))
+                    auto srcname = getWireName(src).str(this);
+                    if (backtrace.count(src)) {
                         continue;
+                    }
                     int intent = wireIntent(src);
                     if (intent == ID_NODE_DOUBLE || intent == ID_NODE_HLONG || intent == ID_NODE_HQUAD ||
                         intent == ID_NODE_VLONG || intent == ID_NODE_VQUAD || intent == ID_NODE_SINGLE ||
@@ -813,16 +822,24 @@ void Arch::routeClock()
                         intent == ID_DOUBLE || intent == ID_HLONG || intent == ID_HQUAD || intent == ID_OPTDELAY ||
                         intent == ID_SINGLE || intent == ID_VLONG || intent == ID_VLONG12 || intent == ID_VQUAD ||
                         intent == ID_PINBOUNCE)
-                        continue;
-                    if (!checkWireAvail(src) && getBoundWireNet(src) != clk_net)
-                        continue;
+                        {
+                            continue;
+                        }
+                    auto avail     = checkWireAvail(src);
+                    auto bound_net = getBoundWireNet(src);
+                    if (!avail && bound_net != clk_net)
+                        {
+                            if (getCtx()->debug)
+                                log_info("            skipping unavailable wire %s used by net %s\n", srcname.c_str(), bound_net->name.c_str(this));
+                            continue;
+                        }
                     backtrace[src] = uh;
                     visit.push(src);
                 }
             }
             if (dest == WireId()) {
                 log_info("            failed to find a route using dedicated resources.\n");
-                if (to_pll_or_mmcm && clk_net->users.front().port == id("CLKIN1")) {
+                if (to_pll_mmcm_clkin1) {
                     // Due to some missing pips, currently special case more lenient solution
                     std::queue<WireId> empty;
                     std::swap(visit, empty);
@@ -857,7 +874,7 @@ void Arch::routeClock()
                 auto uh = backtrace[dest];
                 dest = getPipDstWire(uh);
                 if (getCtx()->debug)
-                    log_info("            bind pip %s --> %s\n", nameOfPip(uh), nameOfWire(dest));
+                    log_info("            bind pip %s\n", nameOfPip(uh));
                 bindWire(dest, clk_net, STRENGTH_LOCKED);
                 bindPip(uh, clk_net, STRENGTH_LOCKED);
             }
