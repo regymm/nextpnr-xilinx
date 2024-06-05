@@ -334,9 +334,8 @@ IdString Arch::getPipName(PipId pip) const
                     std::string("/") + IdString(bel).str(this) + "/" +
                     IdString(loc_info.wire_data[pip_data.src_index].name).str(this));
     } else {
-        return id(std::string(chip_info->tile_insts[pip.tile].name.get()) + "/" +
-                  std::to_string(locInfo(pip).pip_data[pip.index].src_index) + "." +
-                  std::to_string(locInfo(pip).pip_data[pip.index].dst_index));
+        return id(getWireName(getPipSrcWire(pip)).str(this) + "->" +
+                  getWireName(getPipDstWire(pip)).str(this));
     }
 }
 
