@@ -121,73 +121,6 @@ void XC7Packer::constrain_gtp(CellInfo *pad_cell, CellInfo *gtp_cell)
     } else log_error("Pad cell %s has not been placed\n", pad_cell->name.c_str(ctx));
 }
 
-void XC7Packer::constrain_bufhce_gtp_common(CellInfo *bufhce_cell, CellInfo *gtp_common) {
-    auto channel_net = get_net_or_empty(gtp_common, ctx->id("PLL0OUTCLK"));
-    if (channel_net == nullptr)
-        channel_net = get_net_or_empty(gtp_common, ctx->id("PLL1OUTCLK"));
-    if (channel_net == nullptr) {
-        log_warning("No GTPE2_CHANNEL is connected to the clock outputs of %s\n", gtp_common->name.c_str(ctx));
-        return;
-    }
-
-    NPNR_ASSERT(1 <= channel_net->users.size());
-    auto channel = channel_net->users[0].cell;
-    NPNR_ASSERT(channel != nullptr);
-
-    auto channel_bel_str = channel->attrs[id_BEL].as_string();
-    auto channel_bel = ctx->getBelByName(ctx->id(channel_bel_str));
-    auto channel_site = ctx->getBelSiteRef(channel_bel);
-    auto pll_site_y = channel_site.site_y >> 2;
-    auto pll_site_x = channel_site.site_x;
-    auto pll_site = "GTPE2_COMMON_X" + std::to_string(pll_site_x) + "Y" + std::to_string(pll_site_y) + "/GTPE2_COMMON";
-    gtp_common->attrs[id_BEL] = Property(pll_site);
-
-    log_info("    Constraining '%s' to site '%s'\n", gtp_common->name.c_str(ctx), pll_site.c_str());
-    log_info("    Tile '%s'\n", ctx->getTileByIndex(channel_bel.tile).name.get());
-
-    auto pll_bel = ctx->getBelByName(ctx->id(pll_site));
-    NPNR_ASSERT(pll_bel != BelId());
-    Loc pll_tile_loc = ctx->getTileLocation(pll_bel.tile);
-    // the CLK_HROW tile is located three rows above the GTP_COMMON tile
-    int clk_hrow_y = pll_tile_loc.y - 3;
-    int clk_hrow_x = -1;
-    // search for the CLK_HROW_TOP_R tile in the clk_hrow_y row
-    for (int i = 0; i < ctx->chip_info->width; i++) {
-        auto tileinfo  = ctx->getTileByLocation(i, clk_hrow_y);
-        auto tile_type = ctx->getTileType(tileinfo);
-        if (tile_type == id_CLK_HROW_TOP_R) {
-            clk_hrow_x = i;
-            break;
-        }
-    }
-    NPNR_ASSERT(0 < clk_hrow_x);
-    // if the GTP is on the right hand side of CLK_HROW,
-    // take the right buffers (X=1) otherwise take the left buffers (X=0)
-    auto bufh_x = pll_tile_loc.x > clk_hrow_x ? 1 : 0;
-    auto bufh_bels = ctx->getBelsByTile(clk_hrow_x, clk_hrow_y);
-    auto i = bufh_bels.begin();
-    for (; i != bufh_bels.end(); i++) {
-        auto bel = *i;
-        int s = ctx->locInfo(bel).bel_data[bel.index].site;
-        NPNR_ASSERT(s != -1);
-        auto &tile = ctx->chip_info->tile_insts[bel.tile];
-        auto &site = tile.site_insts[s];
-        if (site.site_x != bufh_x) continue;
-        if (used_bels.count(bel)) continue;
-        if (!ctx->checkBelAvail(bel)) continue;
-        auto bel_name = ctx->getBelName(bel);
-        if (!boost::ends_with(bel_name.str(ctx), "/BUFHCE")) continue;
-        bufhce_cell->attrs[id_BEL] = Property(bel_name.str(ctx));
-        used_bels.insert(bel);
-        log_info("    Constraining '%s' to site '%s'\n", bufhce_cell->name.c_str(ctx), bel_name.c_str(ctx));
-        log_info("    Tile '%s'\n", tile.name.get());
-        break;
-    }
-
-    if (i == bufh_bels.end())
-        log_error("Could not find free BUFHCE to place %s", bufhce_cell->name.c_str(ctx));
-}
-
 void XC7Packer::pack_gt()
 {
     log_info("Packing GTP Transceivers..\n");
@@ -215,6 +148,7 @@ void XC7Packer::pack_gt()
                 bool used = port_net != nullptr &&
                             port_net->name != ctx->id("$PACKER_VCC_NET") &&
                             port_net->name != ctx->id("$PACKER_GND_NET");
+                bool internal_refclk = false;
 
                 if (port_name == "DRPCLK") {
                     ci->setParam(ctx->id("_DRPCLK_USED"), Property(used));
@@ -226,19 +160,16 @@ void XC7Packer::pack_gt()
                             driver->name.c_str(ctx), port_net->name.c_str(ctx), driver->type.c_str(ctx));
 
                         if (driver->type == id_BUFGCTRL) {
-                            log_info("Inserting BUFHCE between %s and %s\n", driver->name.c_str(ctx), port_name.c_str());
-                            std::unique_ptr<CellInfo> bufh = create_cell(ctx, id_BUFHCE_BUFHCE, ctx->id("bufhce_" + ci->name.str(ctx)));
-                            tie_port(bufh.get(), "CE", true, true);
-                            disconnect_port(ctx, ci, port.first);
-                            connect_ports(ctx, driver, id_O, bufh.get(), id_I);
-                            connect_ports(ctx, bufh.get(), id_O, ci, port.first);
-                            constrain_bufhce_gtp_common(bufh.get(), ci);
-                            new_cells.push_back(std::move(bufh));
-                        } else if (driver->type == id_BUFHCE_BUFHCE) {
-                          constrain_bufhce_gtp_common(driver, ci);
-                        }
+                            // do nothing, just route it
+                        } else log_error("GTP_COMMON GTREFCLK connected to unsupported cell type %s\n", driver->type.c_str(ctx));
 
-                        continue;
+                        auto port_number = port_name.substr(port_name.size() - 1, 1);
+                        auto gtg_port = ctx->id("GTGREFCLK" + port_number);
+                        log_warning("Internal REFCLK is used for instance '%s', which is not recommended. Connecting refclock to port %s instead.\n",
+                            ci->name.c_str(ctx), gtg_port.c_str(ctx));
+                        rename_port(ctx, ci, port.first, gtg_port);
+                        internal_refclk = true;
+                        ci->setParam(ctx->id("_GTGREFCLK0_USED"), Property(1, 1));
                     } else { // driver is IBUFDS_GTE2
                         log_info("Driver %s of net %s is a IBUFDS_GTE2 block\n",
                             driver->name.c_str(ctx), port_net->name.c_str(ctx));
@@ -261,14 +192,16 @@ void XC7Packer::pack_gt()
                         }
                     }
 
-                    // if we could not determine refclk input by IBUFDS_GTE2 location
-                    // then we just use whatever port is connected
-                    if (boost::ends_with(port_name, "0")) {
-                        refclk0_used = used;
-                        ci->setParam(refclk0_used_attr, Property(used));
-                    } else {
-                        refclk1_used = used;
-                        ci->setParam(refclk1_used_attr, Property(used));
+                    if (!internal_refclk) {
+                        // if we could not determine refclk input by IBUFDS_GTE2 location
+                        // then we just use whatever port is connected
+                        if (boost::ends_with(port_name, "0")) {
+                            refclk0_used = used;
+                            ci->setParam(refclk0_used_attr, Property(used));
+                        } else {
+                            refclk1_used = used;
+                            ci->setParam(refclk1_used_attr, Property(used));
+                        }
                     }
                 }
             }
