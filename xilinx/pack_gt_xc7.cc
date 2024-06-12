@@ -159,9 +159,8 @@ void XC7Packer::pack_gt()
                         log_warning("Driver %s of net %s connected to a GTPE2_COMMON PLL is not an IBUFDS_GTE2 block, but %s\n",
                             driver->name.c_str(ctx), port_net->name.c_str(ctx), driver->type.c_str(ctx));
 
-                        if (driver->type == id_BUFGCTRL) {
-                            // do nothing, just route it
-                        } else log_error("GTP_COMMON GTREFCLK connected to unsupported cell type %s\n", driver->type.c_str(ctx));
+                        if (driver->type != id_BUFGCTRL)
+                            log_error("GTP_COMMON GTREFCLK connected to unsupported cell type %s\n", driver->type.c_str(ctx));
 
                         auto port_number = port_name.substr(port_name.size() - 1, 1);
                         auto gtg_port = ctx->id("GTGREFCLK" + port_number);
