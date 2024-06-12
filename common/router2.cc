@@ -806,7 +806,7 @@ struct Router2
             t.queue.pop();
             ++iter;
 #if 0
-            ROUTE_LOG_DBG("current wire %s\n", ctx->nameOfWire(curr.wire));
+            ROUTE_LOG_DBG("current wire %s\n", ctx->nameOfWire(d.w));
 #endif
             // Explore all pips downhill of cursor
             for (auto dh : ctx->getPipsDownhill(d.w)) {
