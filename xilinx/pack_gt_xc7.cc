@@ -164,8 +164,8 @@ void XC7Packer::pack_gt()
                         if (driver->type != id_BUFGCTRL)
                             log_error("GTP_COMMON GTREFCLK connected to unsupported cell type %s\n", driver->type.c_str(ctx));
 
-                        auto port_number = port_name.substr(port_name.size() - 1, 1);
-                        auto gtg_port = ctx->id("GTGREFCLK" + port_number);
+                        // vivado internally always connects to GTGREFCLK0, even if GTGREFCLK1 is connected in the verilog
+                        auto gtg_port = id_GTGREFCLK0;
                         log_warning("Internal REFCLK is used for instance '%s', which is not recommended. Connecting refclock to port %s instead.\n",
                             ci->name.c_str(ctx), gtg_port.c_str(ctx));
                         rename_port(ctx, ci, port.first, gtg_port);
