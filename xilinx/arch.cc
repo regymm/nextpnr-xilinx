@@ -768,7 +768,7 @@ void Arch::routeClock()
         // check if we have a global clock net, skip otherwise
         bool is_global = false;
         if ((driver_type == id_BUFGCTRL    || driver_type == id_BUFCE_BUFG_PS ||
-                  driver_type == id_BUFCE_BUFCE || driver_type == id_BUFGCE_DIV_BUFGCE_DIV) &&
+             driver_type == id_BUFCE_BUFCE || driver_type == id_BUFGCE_DIV_BUFGCE_DIV) &&
             clk_driver.port == id_O)
             is_global = true;
         else if (no_users == 1 && from_pll_or_mmcm &&
