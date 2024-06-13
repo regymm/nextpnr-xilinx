@@ -1263,7 +1263,7 @@ struct FasmBackend
 
         for (auto cell : sorted(ctx->cells)) {
             CellInfo *ci = cell.second;
-            if (ci->type == ctx->id("BUFGCTRL")) {
+            if (ci->type == id_BUFGCTRL) {
                 push(get_tile_name(ci->bel.tile));
                 auto xy = ctx->getSiteLocInTile(ci->bel);
                 push("BUFGCTRL.BUFGCTRL_X" + std::to_string(xy.x) + "Y" + std::to_string(xy.y));
@@ -1276,7 +1276,7 @@ struct FasmBackend
                 write_bit("ZINV_S0", !bool_or_default(ci->params, ctx->id("IS_S0_INVERTED")));
                 write_bit("ZINV_S1", !bool_or_default(ci->params, ctx->id("IS_S1_INVERTED")));
                 pop(2);
-            } else if (ci->type == ctx->id("BUFHCE")) {
+            } else if (ci->type == id_BUFHCE) {
                 push(get_tile_name(ci->bel.tile));
                 auto xy = ctx->getSiteLocInTile(ci->bel);
                 push("BUFHCE.BUFHCE_X" + std::to_string(xy.x) + "Y" + std::to_string(xy.y));
@@ -1286,9 +1286,9 @@ struct FasmBackend
                 write_bit("INIT_OUT", bool_or_default(ci->params, ctx->id("INIT_OUT")));
                 write_bit("ZINV_CE", !bool_or_default(ci->params, ctx->id("IS_CE_INVERTED")));
                 pop(2);
-            } else if (ci->type == ctx->id("PLLE2_ADV_PLLE2_ADV")) {
+            } else if (ci->type == id_PLLE2_ADV_PLLE2_ADV) {
                 write_pll(ci);
-            } else if (ci->type == ctx->id("MMCME2_ADV_MMCME2_ADV")) {
+            } else if (ci->type == id_MMCME2_ADV_MMCME2_ADV) {
                 write_mmcm(ci);
             } else if (ci->type == id_GTPE2_COMMON || ci->type == id_IBUFDS_GTE2) {
                 write_gtp_pll(ci);
@@ -2052,7 +2052,7 @@ struct FasmBackend
     {
         push(get_tile_name(ci->bel.tile));
 
-        if (ci->type == ctx->id("IBUFDS_GTE2")) {
+        if (ci->type == id_IBUFDS_GTE2) {
             Loc siteLoc = ctx->getSiteLocInTile(ci->bel);
             push("IBUFDS_GTE2_Y" + std::to_string(siteLoc.y));
             write_bit("IN_USE");
@@ -2839,12 +2839,12 @@ struct FasmBackend
     {
         for (auto cell : sorted(ctx->cells)) {
             CellInfo *ci = cell.second;
-            if (ci->type == ctx->id("DSP48E1_DSP48E1")) {
+            if (ci->type == id_DSP48E1_DSP48E1) {
                 write_dsp_cell(ci);
                 blank();
                 continue;
             }
-            if (ci->type == ctx->id("GTPE2_CHANNEL")) {
+            if (ci->type == id_GTPE2_CHANNEL) {
                 write_gtp_channel(ci);
                 blank();
                 continue;
