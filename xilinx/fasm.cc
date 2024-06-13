@@ -767,8 +767,6 @@ struct FasmBackend
         std::string tile = get_tile_name(pad->bel.tile);
         push(tile);
 
-        //std::cerr << "==> write io config for " << pad->name.str(ctx) << " of tile " << tile << " net " << pad_net->name.str(ctx) << std::endl;
-
         bool is_riob18   = boost::starts_with(tile, "RIOB18_");
         bool is_sing     = boost::contains(tile, "_SING_");
         bool is_top_sing = pad->bel.tile < ctx->getHclkForIob(pad->bel);
@@ -2820,7 +2818,6 @@ struct FasmBackend
             std::vector<std::string> pins;
             const auto attr_name = "DSP_" + const_net_name + "_PINS";
             const auto attr_value = str_or_default(ci->attrs, ctx->id(attr_name), "");
-            // std::cerr << "==============  ATTR: " << attr_name << " value: " << attr_value << std::endl;
             boost::split(pins, attr_value, boost::is_any_of(" "));
             for (auto pin : pins) {
                 if (boost::empty(pin)) continue;

@@ -598,7 +598,6 @@ bool Arch::route()
 const std::vector<GraphicElement> &Arch::getDecalGraphics(DecalId decal) const
 {
     if (!decal_graphics.count(decal)) {
-        std::cerr << "No decal named " << decal.str(this) << std::endl;
         log_error("No decal named %s!\n", decal.c_str(this));
     }
     return decal_graphics.at(decal);

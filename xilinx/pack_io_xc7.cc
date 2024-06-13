@@ -358,7 +358,6 @@ void XC7Packer::pack_io()
         auto pad_cell = iob.first;
         auto buf_cell = iob.second.cell;
 
-        // std::cerr << "About to decompose cell " << cell->name.c_str(ctx) << " with type " << cell->type.c_str(ctx) << std::endl;
         if (packed_cells.count(buf_cell->name))
             continue;
 

@@ -779,6 +779,8 @@ class HeAPPlacer
     // Strict placement legalisation, performed after the initial HeAP spreading
     void legalise_placement_strict(bool require_validity = false)
     {
+        const bool debug_this = false;
+
         auto startt = std::chrono::high_resolution_clock::now();
 
         // Unbind all cells placed in this solution
@@ -816,7 +818,7 @@ class HeAPPlacer
             BelId bestBel;
             int best_inp_len = std::numeric_limits<int>::max();
 
-            //std::cerr << "==> placing cell " << ci->name.str(ctx) << std::endl;
+            if (debug_this) std::cerr << "==> placing cell " << ci->name.str(ctx) << std::endl;
 
             total_iters++;
             total_iters_noreset++;
@@ -951,7 +953,7 @@ class HeAPPlacer
                                 Loc loc = ctx->getBelLocation(sz);
                                 cell_locs[ci->name].x = loc.x;
                                 cell_locs[ci->name].y = loc.y;
-                                //std::cerr << "==> placed w/o constraints! \n";
+                                if (debug_this) std::cerr << "==> placed w/o constraints! \n";
                                 placed = true;
                                 break;
                             }
@@ -1006,8 +1008,9 @@ class HeAPPlacer
 
                         for (auto &sm : swaps_made) {
                             if (!ctx->isBelLocationValid(sm.first))
-                                { //std::cerr << "==> fail: move is illegal \n";
-                                goto fail;
+                                {
+                                    if (debug_this) std::cerr << "==> fail: move is illegal \n";
+                                    goto fail;
                                 }
                         }
 
@@ -1024,14 +1027,14 @@ class HeAPPlacer
                             Loc loc = ctx->getBelLocation(target.second);
                             cell_locs[target.first->name].x = loc.x;
                             cell_locs[target.first->name].y = loc.y;
-                            // log_info("%s %d %d %d\n", target.first->name.c_str(ctx), loc.x, loc.y, loc.z);
+                            if (debug_this) log_info("%s %d %d %d\n", target.first->name.c_str(ctx), loc.x, loc.y, loc.z);
                         }
                         for (auto &swap : swaps_made) {
                             if (swap.second != nullptr)
                                 remaining.emplace(chain_size[swap.second->name], swap.second->name);
                         }
 
-                        //std::cerr << "==> placed with constraints! \n";
+                        if (debug_this) std::cerr << "==> placed with constraints! \n";
                         placed = true;
                         break;
                     }
