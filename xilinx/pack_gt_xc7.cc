@@ -20,7 +20,6 @@
 
 #include <boost/algorithm/string.hpp>
 #include "pack.h"
-#include "icecream.hpp"
 
 NEXTPNR_NAMESPACE_BEGIN
 
