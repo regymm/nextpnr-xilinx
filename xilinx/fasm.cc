@@ -2427,7 +2427,7 @@ struct FasmBackend
 
         auto rxcdr_cfg = get_or_default(ci->params, ctx->id("RXCDR_CFG"),
             Property("00000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
-        write_vector("RXCDR_CFG[82:0]", rxcdr_cfg.as_bits(), false, false);
+        write_vector("RXCDR_CFG[82:0]", rxcdr_cfg.as_bits());
         auto rxcdr_fr_reset_on_eidle = bool_or_default(ci->params, ctx->id("RXCDR_FR_RESET_ON_EIDLE"), false);
         write_bit("RXCDR_FR_RESET_ON_EIDLE[0]", rxcdr_fr_reset_on_eidle);
         auto rxcdr_ph_reset_on_eidle = bool_or_default(ci->params, ctx->id("RXCDR_PH_RESET_ON_EIDLE"), false);
