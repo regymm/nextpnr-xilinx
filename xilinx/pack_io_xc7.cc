@@ -1048,16 +1048,28 @@ void XC7Packer::pack_cfg()
 {
     log_info("Packing cfg...\n");
     std::unordered_map<IdString, XFormRule> cfg_rules;
-    cfg_rules[ctx->id("BSCANE2")].new_type      = ctx->id("BSCAN");
-    cfg_rules[ctx->id("DCIRESET")].new_type     = ctx->id("DCIRESET_DCIRESET");
-    cfg_rules[ctx->id("DNA_PORT")].new_type     = ctx->id("DNA_PORT_DNA_PORT");
-    cfg_rules[ctx->id("EFUSE_USR")].new_type    = ctx->id("EFUSE_USR_EFUSE_USR");
-    cfg_rules[ctx->id("ICAPE2")].new_type       = ctx->id("ICAP_ICAP");
-    cfg_rules[ctx->id("FRAME_ECCE2")].new_type  = ctx->id("FRAME_ECC_FRAME_ECC");
-    cfg_rules[ctx->id("STARTUPE2")].new_type    = ctx->id("STARTUP_STARTUP");
-    cfg_rules[ctx->id("USR_ACCESSE2")].new_type = ctx->id("USR_ACCESS_USR_ACCESS");
-
+    cfg_rules[id_BSCANE2].new_type      = id_BSCAN;
+    cfg_rules[id_DCIRESET].new_type     = id_DCIRESET_DCIRESET;
+    cfg_rules[id_DNA_PORT].new_type     = id_DNA_PORT_DNA_PORT;
+    cfg_rules[id_EFUSE_USR].new_type    = id_EFUSE_USR_EFUSE_USR;
+    cfg_rules[id_ICAPE2].new_type       = id_ICAP_ICAP;
+    cfg_rules[id_FRAME_ECCE2].new_type  = id_FRAME_ECC_FRAME_ECC;
+    cfg_rules[id_STARTUPE2].new_type    = id_STARTUP_STARTUP;
+    cfg_rules[id_USR_ACCESSE2].new_type = id_USR_ACCESS_USR_ACCESS;
     generic_xform(cfg_rules);
+
+    for (auto cell : sorted(ctx->cells)) {
+        CellInfo *ci = cell.second;
+
+        if (ci->type == id_BSCAN) {
+            int chain = int_or_default(ci->params, id_JTAG_CHAIN, 1);
+            if (chain < 1 || 4 < chain)
+                log_error("Instance '%s': Invalid JTAG_CHAIN number of '%d\n'. Allowed values are: 1-4.", ci->name.c_str(ctx), chain);
+            auto bel = "BSCAN_X0Y" + std::to_string(chain - 1) + "/BSCAN";
+            ci->attrs[id_BEL] = bel;
+            log_info("    Constraining '%s' to site '%s'\n", ci->name.c_str(ctx), bel.c_str());
+        }
+    }
 }
 
 NEXTPNR_NAMESPACE_END
