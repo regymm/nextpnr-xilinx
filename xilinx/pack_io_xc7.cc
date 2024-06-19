@@ -509,7 +509,11 @@ void XC7Packer::check_valid_pad(CellInfo *ci, std::string type)
     auto drive_attr = ci->attrs.find(ctx->id("DRIVE"));
     // no drive strength attribute: use default
     if (drive_attr == ci->attrs.end()) return;
-    auto drive = drive_attr->second.as_int64();
+    int64_t drive;
+    if (drive_attr->second.is_string)
+        drive = std::stoi(drive_attr->second.as_string());
+    else
+        drive = drive_attr->second.as_int64();
 
     bool is_iob33 = boost::starts_with(type, "IOB33");
     if (is_iob33) {
@@ -521,8 +525,13 @@ void XC7Packer::check_valid_pad(CellInfo *ci, std::string type)
         if (iostandard != "LVCMOS12" && (drive == 12 || drive == 16)) return;
     }
 
+    std::string drive_attr_str;
+    if (drive_attr->second.is_string)
+        drive_attr_str = drive_attr->second.as_string();
+    else
+        drive_attr_str = std::to_string(drive);
     log_error("unsupported DRIVE strength property %s for port %s",
-        drive_attr->second.c_str(), ci->name.c_str(ctx));
+        drive_attr_str.c_str(), ci->name.c_str(ctx));
 }
 
 std::string XC7Packer::get_ologic_site(const std::string &io_bel)
