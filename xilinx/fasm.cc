@@ -1203,22 +1203,22 @@ struct FasmBackend
                 continue;
 
             push(tile_name);
-            if (ci->type == ctx->id("BSCAN")) {
+            if (ci->type == id_BSCAN) {
                 push("BSCAN");
-                int chain = int_or_default(ci->params, ctx->id("JTAG_CHAIN"), 1);
+                int chain = int_or_default(ci->params, id_JTAG_CHAIN, 1);
                 if (chain < 1 || 4 < chain)
                     log_error("Invalid JTAG_CHAIN number of '%d\n'. Allowed values are: 1-4.", chain);
                 write_bit("JTAG_CHAIN_" + std::to_string(chain));
                 pop();
             }
 
-            if (ci->type == ctx->id("DCIRESET_DCIRESET")) {
+            if (ci->type == id_DCIRESET_DCIRESET) {
                 write_bit("DCIRESET.ENABLED");
             }
 
-            if (ci->type == ctx->id("ICAP_ICAP")) {
+            if (ci->type == id_ICAP_ICAP) {
                 push("ICAP");
-                std::string width = str_or_default(ci->params, ctx->id("ICAP_WIDTH"), "X32");
+                std::string width = str_or_default(ci->params, id_ICAP_WIDTH, "X32");
                 if (width != "X32" && width != "X16" && width != "X8")
                     log_error("Unknown ICAP_WIDTH of '%s\n'. Allowed values are: X32, X16 and X8.", width.c_str());
                 if (width == "X16") write_bit("ICAP_WIDTH_X16");
@@ -1226,8 +1226,8 @@ struct FasmBackend
                 pop();
             }
 
-            if (ci->type == ctx->id("STARTUP_STARTUP")) {
-                std::string prog_usr = str_or_default(ci->params, ctx->id("PROG_USR"), "FALSE");
+            if (ci->type == id_STARTUP_STARTUP) {
+                std::string prog_usr = str_or_default(ci->params, id_PROG_USR, "FALSE");
                 if (prog_usr != "TRUE" && prog_usr != "FALSE")
                     log_error("Invalid PROG_USR attribute in STARTUPE2 of '%s\n'. Allowed values are: TRUE, FALSE.", prog_usr.c_str());
                 write_bit("STARTUP.PROG_USR", prog_usr == "TRUE");
