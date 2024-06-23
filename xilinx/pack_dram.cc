@@ -373,6 +373,8 @@ void XilinxPacker::pack_dram()
         } else if (cs.memtype == ctx->id("RAM128X1D") || cs.memtype == ctx->id("RAM256X1D")) {
             // Split these cells into write and read ports and associated mux tree
             bool m256 = cs.memtype == ctx->id("RAM256X1D");
+            if (m256 && ctx->xc7)
+                log_error("RAM256X1D is not supported on xc7!\n");
             for (CellInfo *ci : group.second) {
                 auto init = get_or_default(ci->params, ctx->id("INIT"), Property(0, m256 ? 256 : 128));
                 std::vector<NetInfo *> spo_pre, dpo_pre;
