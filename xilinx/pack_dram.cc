@@ -468,8 +468,8 @@ void XilinxPacker::pack_dram()
                             auto orig_init =
                                     ci->params.at(ctx->id(stringf("INIT_%c", 'A' + i))).extract(0, 64).as_bits();
                             std::string init;
-                            for (int k = 0; k < 32; k++) {
-                                init.push_back(orig_init.at(k * 2 + j));
+                            for (int k = 31; k >= 0; k--) {
+                                init.push_back(orig_init.at(k * 2 + j) ? Property::State::S1 : Property::State::S0);
                             }
                             dram->params[ctx->id("INIT")] = Property::from_string(init);
                         }
