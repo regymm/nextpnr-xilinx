@@ -454,8 +454,8 @@ void XilinxPacker::pack_dram()
                                                      dout, zoffset + i);
                     if (base == nullptr)
                         base = dram;
-                    if (ci->params.count(ctx->id(stringf("INIT%c", 'A' + i))))
-                        dram->params[ctx->id("INIT")] = ci->params[ctx->id(stringf("INIT%c", 'A' + i))];
+                    if (ci->params.count(ctx->id(stringf("INIT_%c", 'A' + i))))
+                        dram->params[ctx->id("INIT")] = ci->params[ctx->id(stringf("INIT_%c", 'A' + i))];
                 } else {
                     for (int j = 0; j < dbits; j++) {
                         NetInfo *di = get_net_or_empty(ci, ctx->id(stringf("DI%c[%d]", 'A' + i, j)));
@@ -466,12 +466,12 @@ void XilinxPacker::pack_dram()
                                                            address, di, dout, (j == 0), zoffset + i);
                         if (base == nullptr)
                             base = dram;
-                        if (ci->params.count(ctx->id(stringf("INIT%c", 'A' + i)))) {
+                        if (ci->params.count(ctx->id(stringf("INIT_%c", 'A' + i)))) {
                             auto orig_init =
-                                    ci->params.at(ctx->id(stringf("INIT%c", 'A' + i))).extract(0, 64).as_bits();
+                                    ci->params.at(ctx->id(stringf("INIT_%c", 'A' + i))).extract(0, 64).as_bits();
                             std::string init;
-                            for (int k = 0; k < 32; k++) {
-                                init.push_back(orig_init.at(k * 2 + j));
+                            for (int k = 31; k >= 0; k--) {
+                                init.push_back(orig_init.at(k * 2 + j) ? Property::State::S1 : Property::State::S0);
                             }
                             dram->params[ctx->id("INIT")] = Property::from_string(init);
                         }
