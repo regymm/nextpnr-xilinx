@@ -423,6 +423,15 @@ void XilinxPacker::pack_dram()
 
                 packed_cells.insert(ci->name);
             }
+        } else if (cs.memtype == ctx->id("RAMS32")
+                || cs.memtype == ctx->id("RAMD32")
+                || cs.memtype == ctx->id("RAMS64E")
+                || cs.memtype == ctx->id("RAMD64E")
+                || cs.memtype == ctx->id("RAM32X1S")
+                || cs.memtype == ctx->id("RAM64X1S")
+                || cs.memtype == ctx->id("RAM128X1S")
+                || cs.memtype == ctx->id("RAM256X1S")) {
+            log_error("Cannot pack unsupported primitive: %s\n", cs.memtype.c_str(ctx));
         }
     }
     // Whole-SLICE DRAM
