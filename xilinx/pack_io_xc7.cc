@@ -318,6 +318,8 @@ void XC7Packer::pack_io()
                 else
                     pad->attrs[id_BEL] = std::string(site + "/IOB33/PAD");
             }
+            if (boost::starts_with(tile, "MONITOR_"))
+                log_error("Cannot place regular IO on monitor/XADC site\n");
         }
         if (pad->attrs.count(ctx->id("BEL"))) {
             used_io_bels.insert(ctx->getBelByName(ctx->id(pad->attrs.at(ctx->id("BEL")).as_string())));
