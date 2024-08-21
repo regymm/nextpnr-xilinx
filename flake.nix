@@ -1,3 +1,5 @@
+# run this flake like this to get a devshell for compiling nextpnr-xilinx:
+# nix develop .
 {
   # Nixpkgs / NixOS version to use.
   inputs.nixpkgs.url = "nixpkgs/24.05";
@@ -14,7 +16,7 @@
       # Nixpkgs instantiated for supported system types.
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in {
-      # contains a mutually consistent set of packages for a full toolchain using nextpnr-xilinx.
+      # devshell for building nextpnr-xilinx
       devShell = forAllSystems (system:
         let nixpkgs = nixpkgsFor.${system};
           in nixpkgs.mkShell {
