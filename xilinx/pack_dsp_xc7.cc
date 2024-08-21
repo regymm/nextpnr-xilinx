@@ -27,15 +27,17 @@ void XC7Packer::walk_dsp(CellInfo *root, CellInfo *current_cell, int constr_z)
 {
     CellInfo *cascaded_cell = nullptr;
 
-    auto check_illegal_fanout = [&] (NetInfo *ni, std::string port) {
+    auto check_illegal_fanout = [&] (CellInfo *ci, NetInfo *ni, std::string port) {
         if (ni->users.size() > 1)
-            log_error("Port %s connected to net %s has more than one user", port.c_str(), ni->name.c_str(ctx));
-        if (ni->users.size() == 0)
-            log_error("Port %s has no connections", port.c_str());
+            log_error("Port %s connected to net %s on cell %s has more than one user\n", port.c_str(), ni->name.c_str(ctx), ci->name.c_str(ctx));
+        if (ni->users.size() == 0) {
+            log_warning("Port %s connected to net %s on cell %s has no connections\n", port.c_str(), ni->name.c_str(ctx), ci->name.c_str(ctx));
+            return;
+        }
 
         PortRef& user = *ni->users.begin();
         if (user.cell->type != ctx->id("DSP48E1_DSP48E1"))
-            log_error("User %s of net %s is not a DSP block, but %s",
+            log_error("User %s of net %s is not a DSP block, but %s\n",
                 user.cell->name.c_str(ctx), ni->name.c_str(ctx), user.cell->type.c_str(ctx));
     };
 
@@ -46,13 +48,15 @@ void XC7Packer::walk_dsp(CellInfo *root, CellInfo *current_cell, int constr_z)
 
         if (cout_net == nullptr) continue;
 
-        check_illegal_fanout(cout_net, port.first.c_str(ctx));
+        check_illegal_fanout(current_cell, cout_net, port.first.c_str(ctx));
+        if (cout_net->users.size() == 0) continue;
+
         PortRef& user = cout_net->users.back();
         CellInfo *cout_cell = user.cell;
         NPNR_ASSERT(cout_cell != nullptr);
 
         if (cascaded_cell != nullptr && cout_cell != cascaded_cell)
-            log_error("the cascading outputs of DSP block %s are connected to different cells",
+            log_error("the cascading outputs of DSP block %s are connected to different cells\n",
                 current_cell->name.c_str(ctx));
 
         cascaded_cell = cout_cell;
