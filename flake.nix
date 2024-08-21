@@ -28,6 +28,10 @@
               python312Packages.boost 
               cmake
               gcc
+              boost
+              bzip2
+              lzma
+              zstd
               eigen
            ]);
  
