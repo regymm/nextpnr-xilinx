@@ -1565,11 +1565,11 @@ struct FasmBackend
 
         std::string comp = str_or_default(ci->params, ctx->id("COMPENSATION"), "INTERNAL");
         push("COMPENSATION");
-        if (comp == "INTERNAL") {
+        if (comp == "INTERNAL" || comp == "ZHOLD") {
             // write_bit("INTERNAL");
             write_bit("Z_ZHOLD_OR_CLKIN_BUF");
         } else {
-            NPNR_ASSERT_FALSE("unsupported compensation type");
+            log_error("unsupported COMPENSATION type '%s' for PLL (supported compensation types: INTERNAL, ZHOLD)\n", comp.c_str());
         }
         pop();
 
@@ -1684,7 +1684,7 @@ struct FasmBackend
             // both modes set this bit
             write_bit("Z_ZHOLD");
         } else {
-            NPNR_ASSERT_FALSE("unsupported compensation type");
+            log_error("unsupported COMPENSATION type '%s' for MMCM (supported compensation types: INTERNAL, ZHOLD)\n", comp.c_str());
         }
         pop();
 
