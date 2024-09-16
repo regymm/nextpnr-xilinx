@@ -589,6 +589,7 @@ struct DeterministicRNG
 
     DeterministicRNG() : rngstate(0x3141592653589793) {}
 
+    // Generate a 64-bit unsigned pseudo-random number
     uint64_t rng64()
     {
         // xorshift64star
@@ -605,6 +606,7 @@ struct DeterministicRNG
 
     int rng() { return rng64() & 0x3fffffff; }
 
+    // Generate a random number uniformly distributed between 0 and n
     int rng(int n)
     {
         assert(n > 0);

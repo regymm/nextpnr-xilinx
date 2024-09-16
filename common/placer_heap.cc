@@ -76,6 +76,7 @@ template <typename T> struct EquationSystem
         std::fill(rhs.begin(), rhs.end(), T());
     }
 
+    // Binary search in A[col], add val if it exists, insert if it doesn't
     void add_coeff(int row, int col, T val)
     {
         auto &Ac = A.at(col);
