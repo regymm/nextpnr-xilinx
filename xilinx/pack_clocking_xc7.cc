@@ -109,10 +109,6 @@ void XC7Packer::pack_plls()
 void XC7Packer::pack_gbs()
 {
     log_info("Packing global buffers...\n");
-    std::unordered_map<IdString, XFormRule> gb_rules;
-    gb_rules[ctx->id("BUFGCTRL")].new_type = ctx->id("BUFGCTRL");
-
-    generic_xform(gb_rules);
 
     // Make sure prerequisites are set up first
     for (auto cell : sorted(ctx->cells)) {
