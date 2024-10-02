@@ -687,12 +687,6 @@ void XC7Packer::pack_iologic()
     std::unordered_map<IdString, BelId> iodelay_to_io;
     std::unordered_map<IdString, XFormRule> iologic_rules;
 
-    // IDDR
-    iologic_rules[ctx->id("IDDR")].new_type = ctx->id("ILOGICE3_IFF");
-    iologic_rules[ctx->id("IDDR")].port_multixform[ctx->id("C")] = { ctx->id("CK"), ctx->id("CKB") };
-    iologic_rules[ctx->id("IDDR")].port_xform[ctx->id("S")] = ctx->id("SR");
-    iologic_rules[ctx->id("IDDR")].port_xform[ctx->id("R")] = ctx->id("SR");
-
     // SERDES
     iologic_rules[ctx->id("ISERDESE2")].new_type = ctx->id("ISERDESE2_ISERDESE2");
     iologic_rules[ctx->id("OSERDESE2")].new_type = ctx->id("OSERDESE2_OSERDESE2");
@@ -806,8 +800,16 @@ void XC7Packer::pack_iologic()
             else
                 oddr_rules[ctx->id("ODDR")].new_type = is_tristate ? ctx->id("OLOGICE3_TFF") : ctx->id("OLOGICE3_OUTFF");
             oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("C")] = ctx->id("CK");
-            oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("S")] = ctx->id("SR");
-            oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("R")] = ctx->id("SR");
+            NetInfo *s_net = get_net_or_empty(ci, ctx->id("S"));
+            NetInfo *r_net = get_net_or_empty(ci, ctx->id("R"));
+            if (s_net != nullptr && s_net->name == ctx->id("$PACKER_GND_NET"))
+                disconnect_port(ctx, ci, ctx->id("S"));
+            else 
+                oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("S")] = ctx->id("SR");
+            if (r_net != nullptr && r_net->name == ctx->id("$PACKER_GND_NET"))
+                disconnect_port(ctx, ci, ctx->id("R"));
+            else 
+                oddr_rules[ctx->id("ODDR")].port_xform[ctx->id("R")] = ctx->id("SR");
             xform_cell(oddr_rules, ci);
 
             ci->attrs[ctx->id("BEL")] = ol_site + (is_tristate ? "/TFF" : "/OUTFF");
@@ -862,6 +864,25 @@ void XC7Packer::pack_iologic()
 
             std::string iol_site = get_ilogic_site(ctx->getBelName(io_bel).str(ctx));
             ci->attrs[ctx->id("BEL")] = iol_site + "/IFF";
+
+            std::unordered_map<IdString, XFormRule> iddr_rules;
+            iddr_rules[ctx->id("IDDR")].new_type = ctx->id("ILOGICE3_IFF");
+            iddr_rules[ctx->id("IDDR")].port_multixform[ctx->id("C")] = { ctx->id("CK"), ctx->id("CKB") };
+            iddr_rules[ctx->id("IDDR")].port_xform[ctx->id("S")] = ctx->id("SR");
+            iddr_rules[ctx->id("IDDR")].port_xform[ctx->id("R")] = ctx->id("SR");
+
+            NetInfo *s_net = get_net_or_empty(ci, ctx->id("S"));
+            NetInfo *r_net = get_net_or_empty(ci, ctx->id("R"));
+            if (s_net != nullptr && s_net->name == ctx->id("$PACKER_GND_NET"))
+                disconnect_port(ctx, ci, ctx->id("S"));
+            else 
+                iddr_rules[ctx->id("IDDR")].port_xform[ctx->id("S")] = ctx->id("SR");
+            if (r_net != nullptr && r_net->name == ctx->id("$PACKER_GND_NET"))
+                disconnect_port(ctx, ci, ctx->id("R"));
+            else 
+                iddr_rules[ctx->id("IDDR")].port_xform[ctx->id("R")] = ctx->id("SR");
+            xform_cell(iddr_rules, ci);
+
         } else if (ci->type == ctx->id("ISERDESE2")) {
             fold_inverter(ci, "CLKB");
             fold_inverter(ci, "OCLKB");
