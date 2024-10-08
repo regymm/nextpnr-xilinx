@@ -29,7 +29,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/join.hpp>
-#include <boost/filesystem/convenience.hpp>
+#include <boost/filesystem/path.hpp>
 #include <boost/program_options.hpp>
 #include <fstream>
 #include <iostream>
@@ -68,14 +68,14 @@ bool CommandHandler::parseOptions()
 bool CommandHandler::executeBeforeContext()
 {
     if (vm.count("help") || argc == 1) {
-        std::cerr << boost::filesystem::basename(argv[0])
+        std::cerr << boost::filesystem::path(argv[0]).stem()
                   << " -- Next Generation Place and Route (Version " GIT_DESCRIBE_STR ")\n";
         std::cerr << options << "\n";
         return argc != 1;
     }
 
     if (vm.count("version")) {
-        std::cerr << boost::filesystem::basename(argv[0])
+        std::cerr << boost::filesystem::path(argv[0]).stem()
                   << " -- Next Generation Place and Route (Version " GIT_DESCRIBE_STR ")\n";
         return true;
     }
