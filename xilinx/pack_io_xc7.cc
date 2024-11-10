@@ -820,18 +820,12 @@ void XC7Packer::pack_iologic()
             if (shiftin1 != nullptr && shiftin1->name == ctx->id("$PACKER_GND_NET")) disconnect_port(ctx, ci, ctx->id("SHIFTIN1"));
             NetInfo *shiftin2 = get_net_or_empty(ci, ctx->id("SHIFTIN2"));
             if (shiftin2 != nullptr && shiftin2->name == ctx->id("$PACKER_GND_NET")) disconnect_port(ctx, ci, ctx->id("SHIFTIN2"));
-            //
-            if(shiftin1 != nullptr || shiftin2 != nullptr){
-                if(shiftin1->driver.port != ctx->id("SHIFTOUT1") || shiftin2->driver.port != ctx->id("SHIFTOUT2")){
-                    log_error("%s '%s' has illegal fanout on SHIFTIN1 or SHIFTOUT2 \n", ci->type.c_str(ctx), ctx->nameOf(ci));
-                }
-            }
             // If this is tied to GND it's just unused. This does not have a route to GND anyway.
             NetInfo *tbytein = get_net_or_empty(ci, ctx->id("TBYTEIN"));
             if (tbytein != nullptr && tbytein->name == ctx->id("$PACKER_GND_NET")) disconnect_port(ctx, ci, ctx->id("TBYTEIN"));
-            //
-            std::string serdes_mode = str_or_default(ci->params,ctx->id("SERDES_MODE"),"MASTER");
-            if(serdes_mode == "MASTER"){
+            
+            std::string serdes_mode = str_or_default(ci->params, ctx->id("SERDES_MODE"), "MASTER");
+            if (serdes_mode == "MASTER") {
                 NetInfo *q = get_net_or_empty(ci, ctx->id("OQ"));
                 NetInfo *ofb = get_net_or_empty(ci, ctx->id("OFB"));
                 bool q_disconnected = q == nullptr || q->users.empty();
@@ -850,8 +844,51 @@ void XC7Packer::pack_iologic()
                 } else if (ofb->users.size() == 1 && ofb->users.at(0).cell->type == ctx->id("ISERDESE2")) {
                     unconstrained_oserdes.insert(ci);
                 } else {
-                    log_error("%s '%s' has illegal fanout on OQ or OFB output\n", ci->type.c_str(ctx), ctx->nameOf(ci));
+                    log_error("%s '%s' has illegal fanout on OQ or OFB output. This means that it is not connected to a corresponding OLOGIC BEL.\n", 
+                              ci->type.c_str(ctx), ctx->nameOf(ci));
                 }
+                auto check_shiftin = [&] (NetInfo *shiftin) {
+                    if (shiftin != nullptr) {
+                        auto driver = shiftin->driver.cell;
+                        auto driver_mode = str_or_default(driver->params, ctx->id("SERDES_MODE"), "MASTER");
+                        if (driver_mode != "SLAVE")
+                            log_error("%s '%s' can only be connected to the SHIFOUT port of another slave OSERDESE2, but is connected to this master: '%s'\n",
+                                      ci->type.c_str(ctx), ctx->nameOf(ci), driver->name.c_str(ctx));
+                        if (boost::starts_with(shiftin->driver.port.str(ctx), "SHIFTOUT")) {
+                            log_error("%s '%s' can only be connected to the SHIFOUT port of another OSERDESE2, but is connected to port: '%s'\n",
+                                      ci->type.c_str(ctx), ctx->nameOf(ci), shiftin->driver.port.c_str(ctx));
+                        }
+                    }
+                };
+                check_shiftin(shiftin1);
+                check_shiftin(shiftin2);
+            } else {
+                if (serdes_mode != "SLAVE")
+                    log_error("%s '%s' has invalid SERDES_MODE '%s'. Valid modes are: MASTER, SLAVE.'\n",
+                              ci->type.c_str(ctx), ctx->nameOf(ci), serdes_mode.c_str());
+
+                NetInfo *shiftout1 = get_net_or_empty(ci, ctx->id("SHIFTOUT1"));
+                NetInfo *shiftout2 = get_net_or_empty(ci, ctx->id("SHIFTOUT2"));
+                auto check_shiftout = [&] (NetInfo *shiftout) {
+                    if (shiftout == nullptr)
+                        log_warning("%s '%s' is in slave mode, but has unconnected SHIFTOUT1 or SHIFTOUT2 port\n",
+                                    ci->type.c_str(ctx), ctx->nameOf(ci));
+                    else if (shiftout->users.size() == 1) {
+                            auto user = shiftout->users.at(0);
+                            auto user_mode = str_or_default(user.cell->params, ctx->id("SERDES_MODE"), "MASTER");
+                            if (user_mode != "MASTER")
+                                log_error("%s '%s' can only be connected to the SHIFTIN port of another master OSERDESE2, but is connected to this slave: '%s'\n",
+                                          ci->type.c_str(ctx), ctx->nameOf(ci), user.cell->name.c_str(ctx));
+                            if (!boost::starts_with(user.port.str(ctx), "SHIFTIN"))
+                                log_error("%s '%s' can only be connected to the SHIFTIN port of another OSERDESE2, but is connected to port: '%s'\n",
+                                          ci->type.c_str(ctx), ctx->nameOf(ci), user.port.c_str(ctx));
+                    } else {
+                        log_error("%s '%s' has multiple fanout on a SHIFTOUT port, which is not allowed.\n",
+                                  ci->type.c_str(ctx), ctx->nameOf(ci));
+                    }
+                };
+                check_shiftout(shiftout1);
+                check_shiftout(shiftout2);
             }
         } else if (ci->type == ctx->id("IDDR")) {
             fold_inverter(ci, "C");
