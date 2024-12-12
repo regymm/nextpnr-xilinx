@@ -2088,8 +2088,8 @@ struct FasmBackend
             write_int_vector("COMMON_CFG[31:0]", common_cfg, 32);
 
             // according to ug482, these attributes contain magic undocumented and reserved wizard values
-            write_int_vector("PLL0_CFG[20:0]", 0b111110000001111011100, 21);
-            write_int_vector("PLL1_CFG[20:0]", 0b111110000001111011100, 21);
+            write_int_vector("PLL0_CFG[26:0]", 0b111110000001111011100, 27);
+            write_int_vector("PLL1_CFG[26:0]", 0b111110000001111011100, 27);
             write_int_vector("PLL0_INIT_CFG[4:0]", 0b11110, 5);
             write_int_vector("PLL1_INIT_CFG[4:0]", 0b11110, 5);
             write_int_vector("PLL0_LOCK_CFG[8:0]", 0b111101000, 9);
@@ -2292,6 +2292,8 @@ struct FasmBackend
         write_int_vector("ES_CONTROL[5:0]", es_control, 6);
         write_str_bool("ES_ERRDET_EN", "ES_ERRDET_EN");
         write_str_bool("ES_EYE_SCAN_EN", "ES_EYE_SCAN_EN");
+        auto es_horz_offset = int_or_default(ci->params, ctx->id("ES_HORZ_OFFSET"), 0x010);
+        write_int_vector("ES_HORZ_OFFSET[11:0]", es_horz_offset, 12);
         auto es_pma_cfg = int_or_default(ci->params, ctx->id("ES_PMA_CFG"), 0);
         write_int_vector("ES_PMA_CFG[9:0]", es_pma_cfg, 10);
         auto es_prescale = int_or_default(ci->params, ctx->id("ES_PRESCALE"), 0);
@@ -2337,8 +2339,8 @@ struct FasmBackend
 
         write_str_bool("PCS_PCIE_EN", "PCS_PCIE_EN");
 
-        auto rsvd_attr = int_or_default(ci->params, ctx->id("RSVD_ATTR"), 0);
-        write_int_vector("RSVD_ATTR[47:0]", rsvd_attr, 48);
+        auto rsvd_attr = int_or_default(ci->params, ctx->id("PCS_RSVD_ATTR"), 0);
+        write_int_vector("PCS_RSVD_ATTR[47:0]", rsvd_attr, 48);
 
         auto pd_trans_time_from_p2 = int_or_default(ci->params, ctx->id("PD_TRANS_TIME_FROM_P2"), 0);
         write_int_vector("PD_TRANS_TIME_FROM_P2[11:0]", pd_trans_time_from_p2, 12);
@@ -2611,7 +2613,7 @@ struct FasmBackend
         auto tx_eidle_deassert_delay = int_or_default(ci->params, ctx->id("TX_EIDLE_DEASSERT_DELAY"), 0);
         write_int_vector("TX_EIDLE_DEASSERT_DELAY[2:0]", tx_eidle_deassert_delay, 3);
 
-        write_str_bool("LOOPBACK_DRIVE_HIZ", "LOOPBACK_DRIVE_HIZ");
+        write_str_bool("TX_LOOPBACK_DRIVE_HIZ", "TX_LOOPBACK_DRIVE_HIZ");
 
         auto tx_maincursor_sel = bool_or_default(ci->params, ctx->id("TX_MAINCURSOR_SEL"), false);
         write_bit("TX_MAINCURSOR_SEL[0]", tx_maincursor_sel);
