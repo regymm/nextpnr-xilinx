@@ -2727,8 +2727,6 @@ struct FasmBackend
         push(get_tile_name(ci->bel.tile));
         push("PCIE_2_1");
 
-        //write_bit("IN_USE");
-
         auto write_str_bool = [&](std::string attribute, std::string deflt = "FALSE") {
             auto val = str_or_default(ci->params, ctx->id(attribute), deflt);
             boost::algorithm::to_upper(val);
@@ -3117,9 +3115,37 @@ struct FasmBackend
 
 		auto pm_data0 = int_or_default(ci->params, ctx->id("PM_DATA0"), 0x1);
 		write_int_vector("PM_DATA0[7:0]", pm_data0, 8);
+		auto pm_data1 = int_or_default(ci->params, ctx->id("PM_DATA1"), 0x1);
+		write_int_vector("PM_DATA1[7:0]", pm_data1, 8);
+		auto pm_data2 = int_or_default(ci->params, ctx->id("PM_DATA2"), 0x1);
+		write_int_vector("PM_DATA2[7:0]", pm_data2, 8);
+		auto pm_data3 = int_or_default(ci->params, ctx->id("PM_DATA3"), 0x1);
+		write_int_vector("PM_DATA3[7:0]", pm_data3, 8);
+		auto pm_data4 = int_or_default(ci->params, ctx->id("PM_DATA4"), 0x1);
+		write_int_vector("PM_DATA4[7:0]", pm_data4, 8);
+		auto pm_data5 = int_or_default(ci->params, ctx->id("PM_DATA5"), 0x1);
+		write_int_vector("PM_DATA5[7:0]", pm_data5, 8);
+		auto pm_data6 = int_or_default(ci->params, ctx->id("PM_DATA6"), 0x1);
+		write_int_vector("PM_DATA6[7:0]", pm_data6, 8);
+		auto pm_data7 = int_or_default(ci->params, ctx->id("PM_DATA7"), 0x1);
+		write_int_vector("PM_DATA7[7:0]", pm_data7, 8);
 
 		auto pm_data_scale0 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE0"), 0x1);
 		write_int_vector("PM_DATA_SCALE0[1:0]", pm_data_scale0, 2);
+		auto pm_data_scale1 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE1"), 0x1);
+		write_int_vector("PM_DATA_SCALE1[1:0]", pm_data_scale1, 2);
+		auto pm_data_scale2 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE2"), 0x1);
+		write_int_vector("PM_DATA_SCALE2[1:0]", pm_data_scale2, 2);
+		auto pm_data_scale3 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE3"), 0x1);
+		write_int_vector("PM_DATA_SCALE3[1:0]", pm_data_scale3, 2);
+		auto pm_data_scale4 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE4"), 0x1);
+		write_int_vector("PM_DATA_SCALE4[1:0]", pm_data_scale4, 2);
+		auto pm_data_scale5 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE5"), 0x1);
+		write_int_vector("PM_DATA_SCALE5[1:0]", pm_data_scale5, 2);
+		auto pm_data_scale6 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE6"), 0x1);
+		write_int_vector("PM_DATA_SCALE6[1:0]", pm_data_scale6, 2);
+		auto pm_data_scale7 = int_or_default(ci->params, ctx->id("PM_DATA_SCALE7"), 0x1);
+		write_int_vector("PM_DATA_SCALE7[1:0]", pm_data_scale7, 2);
 
 		write_str_bool("PM_MF");
 
@@ -3333,98 +3359,6 @@ struct FasmBackend
 		write_int_vector("VSEC_CAP_VERSION[3:0]", vsec_cap_version, 4);
 
 		write_str_bool("ENABLE_JTAG_DBG");
-
-
-        //auto aer_base_ptr = int_or_default(ci->params, ctx->id("AER_BASE_PTR"), 0x140);
-        //write_int_vector("AER_BASE_PTR[11:0]", aer_base_ptr, 12);
-
-		//write_str_bool("AER_CAP_ECRC_CHECK_CAPABLE");
-		//write_str_bool("DEV_CAP_ROLE_BASED_ERROR", "TRUE");
-		//write_str_bool("LINK_CAP_SURPRISE_DOWN_ERROR_CAPABLE");
-		//write_str_bool("AER_CAP_ECRC_GEN_CAPABLE");
-
-        //auto aer_cap_id = int_or_default(ci->params, ctx->id("AER_CAP_ID"), 0x0001);
-        //write_int_vector("AER_BASE_PTR[15:0]", aer_cap_id, 16);
-
-		//write_str_bool("AER_CAP_MULTIHEADER");
-
-        //auto aer_cap_nextptr = int_or_default(ci->params, ctx->id("AER_CAP_NEXTPTR"), 0x178);
-        //write_int_vector("AER_CAP_NEXTPTR[11:0]", aer_cap_nextptr, 12);
-
-		//write_str_bool("AER_CAP_ON");
-
-        //auto aer_optional_err_support = int_or_default(ci->params, ctx->id("AER_CAP_OPTIONAL_ERR_SUPPORT"), 0x178);
-        //write_int_vector("AER_CAP_OPTIONAL_ERR_SUPPORT[23:0]", aer_optional_err_support, 24);
-
-		//write_str_bool("AER_CAP_PERMIT_ROOTERR_UPDATE", "TRUE");
-
-        //auto aer_cap_version = int_or_default(ci->params, ctx->id("AER_CAP_VERSION"), 0x1);
-        //write_int_vector("AER_CAP_VERSION[3:0]", aer_cap_version, 4);
-
-		//write_str_bool("ALLOW_X8_GEN2");
-
-        //auto bar0 = int_or_default(ci->params, ctx->id("BAR0"), 0xFFFFFF00);
-        //auto bar1 = int_or_default(ci->params, ctx->id("BAR1"), 0xFFFF0000);
-        //auto bar2 = int_or_default(ci->params, ctx->id("BAR2"), 0xFFFF000C);
-        //auto bar3 = int_or_default(ci->params, ctx->id("BAR3"), 0xFFFFFFFF);
-        //auto bar4 = int_or_default(ci->params, ctx->id("BAR4"), 0x00000000);
-        //auto bar5 = int_or_default(ci->params, ctx->id("BAR5"), 0x00000000);
-        //write_int_vector("BAR0[31:0]", bar0, 32);
-        //write_int_vector("BAR1[31:0]", bar1, 32);
-        //write_int_vector("BAR2[31:0]", bar2, 32);
-        //write_int_vector("BAR3[31:0]", bar3, 32);
-        //write_int_vector("BAR4[31:0]", bar4, 32);
-        //write_int_vector("BAR5[31:0]", bar5, 32);
-
-        //auto capabilities_ptr = int_or_default(ci->params, ctx->id("CAPABILITIES_PTR"), 0x40);
-        //write_int_vector("CAPABILITIES_PTR[7:0]", capabilities_ptr, 8);
-
-        //auto cardbus_cis_pointer = int_or_default(ci->params, ctx->id("CARDBUS_CIS_POINTER"), 0x0);
-        //write_int_vector("CARDBUS_CIS_POINTER[31:0]", cardbus_cis_pointer, 32);
-
-        //auto class_code = int_or_default(ci->params, ctx->id("CLASS_CODE"), 0x0);
-        //write_int_vector("CLASS_CODE[23:0]", class_code, 24);
-
-        //auto cfg_ecrc_err_cplstat = int_or_default(ci->params, ctx->id("CFG_ECRC_ERR_CPLSTAT"), 0x0);
-        //write_int_vector("CFG_ECRC_ERR_CPLSTAT[1:0]", cfg_ecrc_err_cplstat, 2);
-
-		//write_str_bool("CMD_INTX_IMPLEMENTED", "TRUE");
-		//write_str_bool("CPL_TIMEOUT_DISABLE_SUPPORTED");
-
-        //auto cpl_timeout_ranges_supported = int_or_default(ci->params, ctx->id("CPL_TIMEOUT_RANGES_SUPPORTED"), 0x0);
-        //write_int_vector("CPL_TIMEOUT_RANGES_SUPPORTED[3:0]", cpl_timeout_ranges_supported, 4);
-
-        //auto crm_module_rsts = int_or_default(ci->params, ctx->id("CRM_MODULE_RSTS"), 0x0);
-        //write_int_vector("CRM_MODULE_RSTS[6:0]", crm_module_rsts, 7);
-
-		//write_str_bool("DEV_CAP2_ARI_FORWARDING_SUPPORTED");
-		//write_str_bool("DEV_CAP2_ATOMICOP32_COMPLETER_SUPPORTED");
-		//write_str_bool("DEV_CAP2_ATOMICOP64_COMPLETER_SUPPORTED");
-		//write_str_bool("DEV_CAP2_ATOMICOP_ROUTING_SUPPORTED");
-		//write_str_bool("DEV_CAP2_CAS128_COMPLETER_SUPPORTED");
-		//write_str_bool("DEV_CAP2_ENDEND_TLP_PREFIX_SUPPORTED");
-		//write_str_bool("DEV_CAP2_EXTENDED_FMT_FIELD_SUPPORTED");
-		//write_str_bool("DEV_CAP2_LTR_MECHANISM_SUPPORTED");
-
-        //auto dev_cap2_max_endend_tlp_prefixes = int_or_default(ci->params, ctx->id("DEV_CAP2_MAX_ENDEND_TLP_PREFIXES"), 0x0);
-        //write_int_vector("DEV_CAP2_MAX_ENDEND_TLP_PREFIXES[1:0]", dev_cap2_max_endend_tlp_prefixes, 2);
-
-		//write_str_bool("DEV_CAP2_NO_RO_ENABLED_PRPR_PASSING");
-
-        //auto dev_cap2_tph_completer_supported = int_or_default(ci->params, ctx->id("DEV_CAP2_TPH_COMPLETER_SUPPORTED"), 0x0);
-        //write_int_vector("DEV_CAP2_TPH_COMPLETER_SUPPORTED[1:0]", dev_cap2_tph_completer_supported, 2);
-
-		//write_str_bool("DEV_CAP_ENABLE_SLOT_PWR_LIMIT_SCALE", "TRUE");
-		//write_str_bool("DEV_CAP_ENABLE_SLOT_PWR_LIMIT_VALUE", "TRUE");
-
-        //auto dev_cap_endpoint_l0s_latency = int_or_default(ci->params, ctx->id("DEV_CAP_ENDPOINT_L0S_LATENCY"), 0x0);
-        //write_int_vector("DEV_CAP_ENDPOINT_L0S_LATENCY[2:0]", dev_cap_endpoint_l0s_latency, 3);
-
-        //auto dev_cap_endpoint_l1_latency = int_or_default(ci->params, ctx->id("DEV_CAP_ENDPOINT_L1_LATENCY"), 0x0);
-        //write_int_vector("DEV_CAP_ENDPOINT_L1_LATENCY[2:0]", dev_cap_endpoint_l1_latency, 3);
-
-		//write_str_bool("DEV_CAP_EXT_TAG_SUPPORTED", "TRUE");
-		//write_str_bool("DEV_CAP_FUNCTION_LEVEL_RESET_CAPABLE");
 
         pop(); // PCIE_2_1
         pop(); // tile name
