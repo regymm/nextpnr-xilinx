@@ -202,24 +202,24 @@ void XilinxPacker::pack_ffs()
     ff_rules[ctx->id("FDCE")].new_type = id_SLICE_FFX;
     ff_rules[ctx->id("FDCE")].port_xform[ctx->id("C")] = ctx->xc7 ? id_CK : id_CLK;
     ff_rules[ctx->id("FDCE")].port_xform[ctx->id("CLR")] = id_SR;
-    // ff_rules[ctx->id("FDCE")].param_xform[ctx->id("IS_CLR_INVERTED")] = ctx->id("IS_SR_INVERTED");
+    ff_rules[ctx->id("FDCE")].param_xform[ctx->id("IS_CLR_INVERTED")] = ctx->id("IS_SR_INVERTED");
 
     ff_rules[ctx->id("FDPE")].new_type = id_SLICE_FFX;
     ff_rules[ctx->id("FDPE")].port_xform[ctx->id("C")] = ctx->xc7 ? id_CK : id_CLK;
     ff_rules[ctx->id("FDPE")].port_xform[ctx->id("PRE")] = id_SR;
-    // ff_rules[ctx->id("FDPE")].param_xform[ctx->id("IS_PRE_INVERTED")] = ctx->id("IS_SR_INVERTED");
+    ff_rules[ctx->id("FDPE")].param_xform[ctx->id("IS_PRE_INVERTED")] = ctx->id("IS_SR_INVERTED");
 
     ff_rules[ctx->id("FDRE")].new_type = id_SLICE_FFX;
     ff_rules[ctx->id("FDRE")].port_xform[ctx->id("C")] = ctx->xc7 ? id_CK : id_CLK;
     ff_rules[ctx->id("FDRE")].port_xform[ctx->id("R")] = id_SR;
     ff_rules[ctx->id("FDRE")].set_attrs.emplace_back(ctx->id("X_FFSYNC"), "1");
-    // ff_rules[ctx->id("FDRE")].param_xform[ctx->id("IS_R_INVERTED")] = ctx->id("IS_SR_INVERTED");
+    ff_rules[ctx->id("FDRE")].param_xform[ctx->id("IS_R_INVERTED")] = ctx->id("IS_SR_INVERTED");
 
     ff_rules[ctx->id("FDSE")].new_type = id_SLICE_FFX;
     ff_rules[ctx->id("FDSE")].port_xform[ctx->id("C")] = ctx->xc7 ? id_CK : id_CLK;
     ff_rules[ctx->id("FDSE")].port_xform[ctx->id("S")] = id_SR;
     ff_rules[ctx->id("FDSE")].set_attrs.emplace_back(ctx->id("X_FFSYNC"), "1");
-    // ff_rules[ctx->id("FDSE")].param_xform[ctx->id("IS_S_INVERTED")] = ctx->id("IS_SR_INVERTED");
+    ff_rules[ctx->id("FDSE")].param_xform[ctx->id("IS_S_INVERTED")] = ctx->id("IS_SR_INVERTED");
 
     ff_rules[ctx->id("FDCE_1")] = ff_rules[ctx->id("FDCE")];
     ff_rules[ctx->id("FDCE_1")].set_params.emplace_back(ctx->id("IS_CLK_INVERTED"), 1);
@@ -238,6 +238,7 @@ void XilinxPacker::pack_ffs()
     ff_rules[ctx->id("LDCE")].port_xform[ctx->id("GE")] = id_CE;
     ff_rules[ctx->id("LDCE")].port_xform[ctx->id("CLR")] = id_SR;
     ff_rules[ctx->id("LDCE")].param_xform[ctx->id("IS_G_INVERTED")] = ctx->id("IS_CLK_INVERTED");
+    ff_rules[ctx->id("LDCE")].param_xform[ctx->id("IS_CLR_INVERTED")] = ctx->id("IS_SR_INVERTED");
     ff_rules[ctx->id("LDCE")].set_attrs.emplace_back(ctx->id("X_FF_AS_LATCH"), "1");
 
     ff_rules[ctx->id("LDPE")].new_type = id_SLICE_FFX;
@@ -245,17 +246,19 @@ void XilinxPacker::pack_ffs()
     ff_rules[ctx->id("LDPE")].port_xform[ctx->id("GE")] = id_CE;
     ff_rules[ctx->id("LDPE")].port_xform[ctx->id("PRE")] = id_SR;
     ff_rules[ctx->id("LDPE")].param_xform[ctx->id("IS_G_INVERTED")] = ctx->id("IS_CLK_INVERTED");
+    ff_rules[ctx->id("LDPE")].param_xform[ctx->id("IS_PRE_INVERTED")] = ctx->id("IS_SR_INVERTED");
     ff_rules[ctx->id("LDPE")].set_attrs.emplace_back(ctx->id("X_FF_AS_LATCH"), "1");
 
     generic_xform(ff_rules, true);
 
-    // Const-tied FF control pins (SR=GND meaning "no reset", CE=VCC meaning "always
-    // enabled") are realised by SLICE-local config muxes (SRUSEDMUX/CEUSEDMUX), not by
-    // fabric routing. The FASM backend already derives those bits from the pin being on
-    // $PACKER_GND_NET / $PACKER_VCC_NET (or absent) -- see is_srused/is_ceused in
-    // fasm.cc -- so disconnecting these pins is bitstream-neutral. It does, however, keep
-    // them off the global const nets, which the router would otherwise have to fan out as
-    // one enormous net (the dominant open-flow routing bottleneck: ~141 FF resets alone).
+    // Const-tied inactive FF controls are realised by SLICE-local config muxes,
+    // not by fabric routing.  On UltraScale+ Yosys's invertible-pin pass commonly
+    // rewrites R=GND as R=VCC plus IS_R_INVERTED=1.  Preserve that parameter
+    // through the logical-to-physical transform above, recognize either
+    // representation here, and canonicalize an inactive SR to the form Vivado
+    // emits: disconnected/local constant with physical SRINV=1.  Dropping the
+    // inversion while leaving the rewritten VCC routed to SR holds every FDRE
+    // permanently in reset.
     {
         IdString gnd = ctx->id("$PACKER_GND_NET");
         IdString vcc = ctx->id("$PACKER_VCC_NET");
@@ -265,8 +268,13 @@ void XilinxPacker::pack_ffs()
             if (ci->type != id_SLICE_FFX)
                 continue;
             NetInfo *sr = get_net_or_empty(ci, id_SR);
-            if (sr != nullptr && sr->name == gnd) {
+            bool sr_inv = int_or_default(ci->params, ctx->id("IS_SR_INVERTED")) == 1;
+            bool sr_inactive = sr != nullptr &&
+                    ((sr->name == gnd && !sr_inv) ||
+                     (sr->name == vcc && sr_inv));
+            if (sr_inactive) {
                 disconnect_port(ctx, ci, id_SR);
+                ci->params[ctx->id("IS_SR_INVERTED")] = 1;
                 ++n_sr;
             }
             NetInfo *ce = get_net_or_empty(ci, id_CE);
@@ -275,7 +283,7 @@ void XilinxPacker::pack_ffs()
                 ++n_ce;
             }
         }
-        log_info("    local-const FF control: disconnected %d SR(=GND) + %d CE(=VCC) pins "
+        log_info("    local-const FF control: disconnected %d inactive SR + %d CE(=VCC) pins "
                  "from global nets\n", n_sr, n_ce);
 
         // Unused RAMB36 data-cascade inputs are tied to a constant by the

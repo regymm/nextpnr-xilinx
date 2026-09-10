@@ -21,6 +21,7 @@
 #include <boost/optional.hpp>
 #include <iterator>
 #include <queue>
+#include <set>
 #include <unordered_set>
 #include "cells.h"
 #include "chain_utils.h"
@@ -127,12 +128,18 @@ void USPacker::decompose_iob(CellInfo *xil_iob, const std::string &iostandard)
                        xil_iob->type == ctx->id("IOBUF_INTERMDISABLE") || xil_iob->type == ctx->id("IOBUFE3");
     bool is_se_obuf = xil_iob->type == ctx->id("OBUF") || xil_iob->type == ctx->id("OBUFT");
 
-    auto pad_site = [&](NetInfo *n) {
+    auto pad_bel = [&](NetInfo *n) {
         for (auto user : n->users)
-            if (user.cell->type == ctx->id("PAD"))
-                return ctx->getBelSite(ctx->getBelByName(ctx->id(user.cell->attrs[ctx->id("BEL")].as_string())));
+            if (user.cell->type == ctx->id("PAD")) {
+                BelId bel = ctx->getBelByName(ctx->id(user.cell->attrs.at(ctx->id("BEL")).as_string()));
+                if (bel == BelId())
+                    log_error("Unable to find PAD BEL '%s' for net '%s'\n",
+                              user.cell->attrs.at(ctx->id("BEL")).as_string().c_str(), n->name.c_str(ctx));
+                return bel;
+            }
         NPNR_ASSERT_FALSE(("can't find PAD for net " + n->name.str(ctx)).c_str());
     };
+    auto pad_site = [&](NetInfo *n) { return ctx->getBelSite(pad_bel(n)); };
 
     /*
      * IO primitives in Xilinx are complex "macros" that usually expand to more than one BEL
@@ -477,6 +484,8 @@ void USPacker::pack_io()
     for (auto &iob : pad_and_buf) {
         CellInfo *pad = iob.first;
         // Process location constraints
+        if (pad->attrs.count(ctx->id("PACKAGE_PIN")))
+            pad->attrs[ctx->id("LOC")] = pad->attrs.at(ctx->id("PACKAGE_PIN"));
         if (pad->attrs.count(ctx->id("LOC"))) {
             std::string loc = pad->attrs.at(ctx->id("LOC")).as_string();
             std::string site = ctx->getPackagePinSite(loc);
@@ -487,7 +496,11 @@ void USPacker::pack_io()
             pad->attrs[ctx->id("BEL")] = std::string(site + "/PAD");
         }
         if (pad->attrs.count(ctx->id("BEL"))) {
-            used_io_bels.insert(ctx->getBelByName(ctx->id(pad->attrs.at(ctx->id("BEL")).as_string())));
+            std::string bel_name = pad->attrs.at(ctx->id("BEL")).as_string();
+            BelId bel = ctx->getBelByName(ctx->id(bel_name));
+            if (bel == BelId())
+                log_error("Unable to find IO BEL '%s' for port '%s'\n", bel_name.c_str(), pad->name.c_str(ctx));
+            used_io_bels.insert(bel);
         } else {
             ++unconstr_io_count;
         }
@@ -513,6 +526,7 @@ void USPacker::pack_io()
             available_io_bels.pop();
         }
     }
+
     // Decompose macro IO primitives to smaller primitives that map logically to the actual IO Bels
     for (auto &iob : pad_and_buf) {
         if (packed_cells.count(iob.second.cell->name))
@@ -522,9 +536,148 @@ void USPacker::pack_io()
     }
     flush_cells();
 
+    // UltraScale+ HDIO has a routable VCC path into OPFF D1, but no matching
+    // global-GND path.  Vivado therefore realizes a constant-low OBUF input
+    // with an ordinary fabric LUT programmed to zero and routes that LUT
+    // output into the HDIO logic.  Leaving the sink on $PACKER_GND_NET makes
+    // router2 report 0/1 sinks bridged and relies on an accidental low default
+    // at the output path.  Insert the same explicit zero source here.
+    //
+    // HDIO tile coordinates describe the whole 12-pin column rather than an
+    // individual IOB lane, so ordinary placement cost can put this LUT beside
+    // the wrong end of the column.  Find the nearest reachable LUT output with
+    // a reverse breadth-first search from OUTBUF.I and constrain the inserted
+    // LUT there.  For AXU2CG Y12 this selects the Vivado-equivalent fabric row
+    // beside INT_X9Y56 rather than the HDIO tile's Y30 anchor.
+    // Track LUT BELs already requested by the design or selected below.  The
+    // graph search runs before placement, so checkBelAvail() alone cannot see
+    // attribute constraints and two nearby HDIO lanes could otherwise select
+    // the same fabric LUT.
+    std::set<BelId> reserved_lut_bels;
+    for (auto cell : sorted(ctx->cells)) {
+        CellInfo *ci = cell.second;
+        if (!ci->attrs.count(ctx->id("BEL")))
+            continue;
+        BelId bel = ctx->getBelByName(ctx->id(ci->attrs.at(ctx->id("BEL")).as_string()));
+        if (bel != BelId() && ctx->getBelType(bel) == ctx->id("SLICE_LUTX"))
+            reserved_lut_bels.insert(bel);
+    }
+
+    auto nearest_lut_output = [&](BelId outbuf_bel) {
+        std::queue<std::pair<WireId, int>> pending;
+        std::set<WireId> seen;
+        WireId sink = ctx->getBelPinWire(outbuf_bel, ctx->id("I"));
+        pending.emplace(sink, 0);
+        seen.insert(sink);
+        while (!pending.empty()) {
+            WireId wire = pending.front().first;
+            int depth = pending.front().second;
+            pending.pop();
+            for (auto bel_pin : ctx->getWireBelPins(wire)) {
+                if (ctx->getBelType(bel_pin.bel) == ctx->id("SLICE_LUTX")
+                    && bel_pin.pin == ctx->id("O6")
+                    && !reserved_lut_bels.count(bel_pin.bel))
+                    return bel_pin.bel;
+            }
+            if (depth >= 32)
+                continue;
+            for (auto pip : ctx->getPipsUphill(wire)) {
+                WireId source = ctx->getPipSrcWire(pip);
+                if (seen.insert(source).second)
+                    pending.emplace(source, depth + 1);
+            }
+        }
+        return BelId();
+    };
+
+    int hdio_zero_luts = 0;
+    for (auto cell : sorted(ctx->cells)) {
+        CellInfo *buf = cell.second;
+        if (buf->type != ctx->id("OBUF") && buf->type != ctx->id("OBUFT"))
+            continue;
+        if (!buf->attrs.count(ctx->id("BEL")))
+            continue;
+        BelId outbuf_bel = ctx->getBelByName(ctx->id(buf->attrs.at(ctx->id("BEL")).as_string()));
+        NPNR_ASSERT(outbuf_bel != BelId());
+        std::string tile_type = IdString(ctx->locInfo(outbuf_bel).type).str(ctx);
+        if (tile_type.compare(0, 5, "HDIO_") != 0)
+            continue;
+        NetInfo *data = get_net_or_empty(buf, ctx->id("I"));
+        if (data == nullptr || data->name != ctx->id("$PACKER_GND_NET"))
+            continue;
+
+        BelId zero_bel = nearest_lut_output(outbuf_bel);
+        if (zero_bel == BelId())
+            log_error("Unable to find a fabric LUT route to constant-low HDIO buffer '%s'\n",
+                      buf->name.c_str(ctx));
+
+        std::unique_ptr<NetInfo> zero_net{new NetInfo};
+        zero_net->name = ctx->id(buf->name.str(ctx) + "$HDIO_ZERO_NET");
+        NetInfo *zero_net_ptr = zero_net.get();
+        disconnect_port(ctx, buf, ctx->id("I"));
+        auto zero_lut = create_lut(
+                ctx, buf->name.str(ctx) + "$HDIO_ZERO_LUT",
+                {ctx->nets.at(ctx->id("$PACKER_VCC_NET")).get()},
+                zero_net_ptr, Property(0, 2));
+        zero_lut->attrs[ctx->id("BEL")] = ctx->getBelName(zero_bel).str(ctx);
+        reserved_lut_bels.insert(zero_bel);
+        connect_port(ctx, zero_net_ptr, buf, ctx->id("I"));
+        ctx->nets[zero_net->name] = std::move(zero_net);
+        new_cells.push_back(std::move(zero_lut));
+        ++hdio_zero_luts;
+    }
+    flush_cells();
+    if (hdio_zero_luts)
+        log_info("    Inserted %d HDIO constant-low LUT source%s\n",
+                 hdio_zero_luts, hdio_zero_luts == 1 ? "" : "s");
+
+    // Give ordinary LUTs directly driving an HDIO output a lane-aware
+    // placement anchor.  An aggregate HDIO tile represents twelve IOBs spread
+    // across roughly thirty routing rows, but all of its BELs otherwise have
+    // the tile anchor as their generic placement coordinate.  That pulled a
+    // KEY1->LUT1->LED3 inverter to Y30 even though LED3 enters HDIO at Y58 and
+    // led to an unnecessary regional-clock route.  Reuse the same reverse
+    // route-graph search as the zero-LUT case to select a reachable LUT beside
+    // the actual output lane.  User BEL constraints remain authoritative.
+    int hdio_anchored_luts = 0;
+    for (auto cell : sorted(ctx->cells)) {
+        CellInfo *buf = cell.second;
+        if (buf->type != ctx->id("OBUF") && buf->type != ctx->id("OBUFT"))
+            continue;
+        if (!buf->attrs.count(ctx->id("BEL")))
+            continue;
+        BelId outbuf_bel = ctx->getBelByName(ctx->id(buf->attrs.at(ctx->id("BEL")).as_string()));
+        NPNR_ASSERT(outbuf_bel != BelId());
+        std::string tile_type = IdString(ctx->locInfo(outbuf_bel).type).str(ctx);
+        if (tile_type.compare(0, 5, "HDIO_") != 0)
+            continue;
+
+        NetInfo *data = get_net_or_empty(buf, ctx->id("I"));
+        if (data == nullptr || data->driver.cell == nullptr)
+            continue;
+        CellInfo *driver = data->driver.cell;
+        std::string driver_type = driver->type.str(ctx);
+        if (driver_type.size() != 4 || driver_type.compare(0, 3, "LUT") != 0
+            || driver_type[3] < '1' || driver_type[3] > '6'
+            || driver->attrs.count(ctx->id("BEL")))
+            continue;
+
+        BelId anchor = nearest_lut_output(outbuf_bel);
+        if (anchor == BelId())
+            log_error("Unable to find a fabric LUT placement anchor for HDIO buffer '%s'\n",
+                      buf->name.c_str(ctx));
+        driver->attrs[ctx->id("BEL")] = ctx->getBelName(anchor).str(ctx);
+        reserved_lut_bels.insert(anchor);
+        ++hdio_anchored_luts;
+        log_info("    Anchoring HDIO output driver '%s' at '%s' for '%s'\n",
+                 driver->name.c_str(ctx), ctx->nameOfBel(anchor), buf->name.c_str(ctx));
+    }
+    if (hdio_anchored_luts)
+        log_info("    Anchored %d HDIO LUT output driver%s by lane connectivity\n",
+                 hdio_anchored_luts, hdio_anchored_luts == 1 ? "" : "s");
+
     // Type transformations from logical to physical
     std::unordered_map<IdString, XFormRule> io_rules;
-    io_rules[ctx->id("PAD")].new_type = ctx->id("IOB_PAD");
     io_rules[ctx->id("OBUF")].new_type = ctx->id("IOB_OUTBUF");
     io_rules[ctx->id("OBUFT")].new_type = ctx->id("IOB_OUTBUF");
     io_rules[ctx->id("OBUFT")].port_xform[ctx->id("T")] = ctx->id("TRI");
@@ -539,6 +692,37 @@ void USPacker::pack_io()
     io_rules[ctx->id("INV")].port_xform[ctx->id("O")] = ctx->id("OUT");
 
     io_rules[ctx->id("PS8")].new_type = ctx->id("PSS_ALTO_CORE");
+
+    std::unordered_map<IdString, XFormRule> hdio_rules;
+    hdio_rules[ctx->id("OBUF")].new_type = ctx->id("HDIOB_OUTBUF");
+    hdio_rules[ctx->id("OBUF")].port_xform[ctx->id("T")] = ctx->id("TRI");
+    hdio_rules[ctx->id("OBUFT")] = hdio_rules[ctx->id("OBUF")];
+    hdio_rules[ctx->id("INBUF")].new_type = ctx->id("HDIOB_INBUF");
+    hdio_rules[ctx->id("IBUFCTRL")].new_type = ctx->id("HDIOB_IBUFCTRL");
+
+    // HPIO and HDIO use different physical PAD and buffer cell types.  Select
+    // the transform from the already constrained BEL instead of assuming HPIO.
+    for (auto cell : sorted(ctx->cells)) {
+        CellInfo *ci = cell.second;
+        if (!ci->attrs.count(ctx->id("BEL")))
+            continue;
+        BelId bel = ctx->getBelByName(ctx->id(ci->attrs.at(ctx->id("BEL")).as_string()));
+        if (bel == BelId())
+            log_error("Unable to find constrained BEL '%s' for cell '%s'\n",
+                      ci->attrs.at(ctx->id("BEL")).as_string().c_str(), ci->name.c_str(ctx));
+        IdString bel_type = ctx->getBelType(bel);
+        if (ci->type == ctx->id("PAD")) {
+            if (bel_type == ctx->id("IOB_PAD"))
+                ci->type = ctx->id("IOB_PAD");
+            else if (bel_type != ctx->id("PAD"))
+                log_error("Cell '%s' is constrained to non-PAD BEL '%s'\n", ci->name.c_str(ctx),
+                          ctx->nameOfBel(bel));
+        } else if ((bel_type == ctx->id("HDIOB_INBUF") || bel_type == ctx->id("HDIOB_OUTBUF") ||
+                    bel_type == ctx->id("HDIOB_IBUFCTRL")) &&
+                   hdio_rules.count(ci->type)) {
+            xform_cell(hdio_rules, ci);
+        }
+    }
 
     generic_xform(io_rules, true);
 }

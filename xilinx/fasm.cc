@@ -430,14 +430,130 @@ struct FasmBackend
             if (emitted_anything)
                 last_was_blank = false;
         } else {
-            if (pd.extra_data == 1)
-                log_warning("Unprocessed route-thru %s.%s.%s\n!", get_tile_name(pip.tile).c_str(),
-                            IdString(ctx->locInfo(pip).wire_data[pd.dst_index].name).c_str(ctx),
-                            IdString(ctx->locInfo(pip).wire_data[pd.src_index].name).c_str(ctx));
-
             std::string tile_name = get_tile_name(pip.tile);
             std::string dst_name = IdString(ctx->locInfo(pip).wire_data[pd.dst_index].name).str(ctx);
             std::string src_name = IdString(ctx->locInfo(pip).wire_data[pd.src_index].name).str(ctx);
+
+            // These UltraScale+ tile PIPs are fixed continuations.  Vivado
+            // includes them in the routed net but they have no bit in the
+            // U-Ray database and do not appear when its bitstream is
+            // disassembled.  Treat them as pseudo-PIPs instead of emitting
+            // unassemblable FASM lines.
+            if (boost::starts_with(tile_name, "HDIO_")
+                && boost::starts_with(dst_name, "HDIO_IOBPAIR_")
+                && boost::ends_with(dst_name, "_OP_PIN")
+                && boost::starts_with(src_name, "HDIO_LOGICPAIR_")
+                && (boost::ends_with(src_name, "_OPFFM_Q")
+                    || boost::ends_with(src_name, "_OPFFS_Q")))
+                return;
+            if (boost::starts_with(tile_name, "HDIO_")
+                && boost::starts_with(dst_name, "HDIO_LOGICPAIR_")
+                && boost::ends_with(dst_name, "_OPFFM_D1_PIN")
+                && boost::starts_with(src_name, "HDIO_FBRCBYTESCAN_MUX_")
+                && boost::ends_with(src_name, "_FBRC2IOL_TX_DATA_ODD"))
+                return;
+            if (boost::starts_with(tile_name, "HDIO_")
+                && boost::starts_with(dst_name, "HDIO_LOGICPAIR_")
+                && boost::contains(dst_name, "_IPFF")
+                && boost::ends_with(dst_name, "_D_PIN")
+                && boost::starts_with(src_name, "HDIO_IOBPAIR_")
+                && boost::ends_with(src_name, "_I"))
+                return;
+            if (boost::starts_with(tile_name, "HDIO_")
+                && boost::starts_with(dst_name, "HDIO_LOGICPAIR_")
+                && boost::contains(dst_name, "_IPFF")
+                && boost::ends_with(dst_name, "_BYPASS")
+                && boost::starts_with(src_name, "HDIO_LOGICPAIR_")
+                && boost::ends_with(src_name, "_D_PIN"))
+                return;
+            if (boost::starts_with(tile_name, "INT_INTF_")
+                && boost::starts_with(dst_name, "IMUXOUT")
+                && boost::starts_with(src_name, "IMUX")
+                && dst_name.substr(std::string("IMUXOUT").size())
+                       == src_name.substr(std::string("IMUX").size()))
+                return;
+            if (boost::starts_with(tile_name, "RCLK_")
+                && boost::starts_with(dst_name, "CLK_LEAF_SITES_")
+                && boost::ends_with(dst_name, "_CLK_LEAF")
+                && boost::starts_with(src_name, "CLK_LEAF_SITES_")
+                && boost::ends_with(src_name, "_CLK_IN")) {
+                // The route-through represents a BUFCE_LEAF site.  It has no
+                // PIP feature, but it is not configuration-free: Vivado's
+                // working bitstream enables the corresponding relative site,
+                // selects the non-inverted input encoding, and sets delay 0.
+                // Without IN_USE the routed global clock stops at CLK_IN.
+                std::string dst_site = dst_name.substr(
+                        0, dst_name.size() - std::string("_CLK_LEAF").size());
+                std::string src_site = src_name.substr(
+                        0, src_name.size() - std::string("_CLK_IN").size());
+                if (dst_site == src_site) {
+                    int leaf = -1;
+                    try {
+                        leaf = std::stoi(dst_site.substr(
+                                std::string("CLK_LEAF_SITES_").size()));
+                    } catch (...) {
+                        leaf = -1;
+                    }
+                    // Vivado device queries establish the raw-wire index to
+                    // relative BUFCE_LEAF site map for RCLK tiles.  The map is
+                    // shared by the RCLK_INT variants; relative coordinates
+                    // are exactly the X/Y scopes used by the U-Ray database.
+                    static const int leaf_x[32] = {
+                        0, 1, 1, 0, 5, 4, 3, 2,
+                        2, 3, 4, 5, 6, 7, 0, 1,
+                        1, 0, 7, 6, 5, 4, 3, 2,
+                        2, 3, 4, 5, 6, 7, 7, 6,
+                    };
+                    static const int leaf_y[32] = {
+                        0, 0, 2, 2, 0, 0, 0, 0,
+                        2, 2, 2, 2, 0, 0, 1, 1,
+                        3, 3, 2, 2, 1, 1, 1, 1,
+                        3, 3, 3, 3, 1, 1, 3, 3,
+                    };
+                    if (leaf < 0 || leaf >= 32)
+                        log_error("FASM: invalid BUFCE_LEAF route-through '%s' in %s\n",
+                                  dst_name.c_str(), tile_name.c_str());
+                    std::string prefix = tile_name + ".BUFCE_LEAF_X" +
+                            std::to_string(leaf_x[leaf]) + "Y" +
+                            std::to_string(leaf_y[leaf]) + ".BUFCE_LEAF.";
+                    out << prefix << "DELAY_TAP.V0" << std::endl;
+                    out << prefix << "IINV.V1" << std::endl;
+                    out << prefix << "IN_USE.V1" << std::endl;
+                    last_was_blank = false;
+                    return;
+                }
+            }
+            bool right_pcie4_crossing =
+                    boost::starts_with(tile_name, "INT_INTF_R_PCIE4")
+                    && boost::starts_with(dst_name, "LOGIC_OUTS_L")
+                    && boost::starts_with(src_name, "LOGIC_OUTS_R")
+                    && dst_name.substr(std::string("LOGIC_OUTS_L").size())
+                               == src_name.substr(std::string("LOGIC_OUTS_R").size());
+            bool left_pcie4_crossing =
+                    boost::starts_with(tile_name, "INT_INTF_L_PCIE4")
+                    && boost::starts_with(dst_name, "LOGIC_OUTS_R")
+                    && boost::starts_with(src_name, "LOGIC_OUTS_L")
+                    && dst_name.substr(std::string("LOGIC_OUTS_R").size())
+                               == src_name.substr(std::string("LOGIC_OUTS_L").size());
+            if (right_pcie4_crossing || left_pcie4_crossing) {
+                // The individual interface crossing has no independent PIP
+                // bit.  Vivado instead sets a shared three-bit output-enable
+                // feature in the corresponding left or right tile segment.
+                out << tile_name << ".OUTPUTS_ENABLED[1]" << std::endl;
+                last_was_blank = false;
+                return;
+            }
+
+            bool handled_hdio_direct_output =
+                    boost::starts_with(tile_name, "HDIO_")
+                    && boost::starts_with(dst_name, "HDIO_LOGICPAIR_")
+                    && boost::contains(dst_name, "_OPFF")
+                    && boost::ends_with(dst_name, "_Q")
+                    && (boost::ends_with(src_name, "_D1")
+                        || boost::ends_with(src_name, "_D1_PIN"));
+            if ((pd.extra_data & 1) && !handled_hdio_direct_output)
+                log_warning("Unprocessed route-thru %s.%s.%s\n!", tile_name.c_str(),
+                            dst_name.c_str(), src_name.c_str());
 
             if (boost::starts_with(tile_name, "DSP_L") || boost::starts_with(tile_name, "DSP_R")) {
                 // FIXME: PPIPs missing for DSPs
@@ -497,8 +613,48 @@ struct FasmBackend
             }
 
             out << tile_name << ".";
-            out << dst_name << ".";
-            out << src_name << std::endl;
+            if (!ctx->xc7)
+                out << "PIP.";
+            if (!ctx->xc7 && (pd.extra_data & 2)) {
+                bool reverse = pd.extra_data & 4;
+                out << (reverse ? src_name : dst_name) << ".";
+                out << (reverse ? dst_name : src_name) << ".";
+                out << (reverse ? "REV" : "FWD") << std::endl;
+            } else {
+                out << dst_name << ".";
+                out << src_name << std::endl;
+            }
+
+            // An HDIO LOGICPAIR D1->Q routing PIP selects the direct,
+            // unregistered output path.  U-Ray records the accompanying mux
+            // bit under the relative HDIOLOGIC_M/S site rather than as part
+            // of the tile PIP.  Vivado emits both features for every plain
+            // OBUF.  Derive the relative site Y from the LOGICPAIR index:
+            // M uses 14,21,...,49 and S uses 15,22,...,50.
+            if (boost::starts_with(tile_name, "HDIO_")
+                && boost::contains(dst_name, "_OPFF")
+                && boost::ends_with(dst_name, "_Q")
+                && (boost::ends_with(src_name, "_D1")
+                    || boost::ends_with(src_name, "_D1_PIN"))) {
+                const std::string prefix = "HDIO_LOGICPAIR_";
+                if (boost::starts_with(dst_name, prefix)) {
+                    size_t number_end = dst_name.find('_', prefix.size());
+                    int pair = -1;
+                    try {
+                        pair = std::stoi(dst_name.substr(prefix.size(), number_end - prefix.size()));
+                    } catch (...) {
+                        pair = -1;
+                    }
+                    bool is_m = boost::contains(dst_name, "_OPFFM_Q");
+                    bool is_s = boost::contains(dst_name, "_OPFFS_Q");
+                    int base = is_m ? 14 : (is_s ? 15 : -1);
+                    if (base >= 0 && pair >= base && ((pair - base) % 7) == 0) {
+                        int site_y = (pair - base) / 7;
+                        out << tile_name << ".HDIOLOGIC_" << (is_m ? "M" : "S")
+                            << "_X0Y" << site_y << ".OQ_MUX.NOT_OPTFF" << std::endl;
+                    }
+                }
+            }
 
             if (boost::contains(tile_name, "IOI") && boost::starts_with(dst_name, "IOI_OCLK_")) {
                 dst_name.insert(dst_name.find("OCLK") + 4, 1, 'M');
@@ -609,11 +765,17 @@ struct FasmBackend
 
     std::string get_tile_name(int tile) { return ctx->chip_info->tile_insts[tile].name.get(); }
 
-    void write_routing_bel(WireId dst_wire)
+    bool write_routing_bel(WireId dst_wire)
     {
+        bool emitted = false;
         for (auto pip : ctx->getPipsUphill(dst_wire)) {
             if (ctx->getBoundPipNet(pip) != nullptr) {
                 auto &pd = ctx->locInfo(pip).pip_data[pip.index];
+                // A BEL input site wire can also have a bound site-entrance
+                // pip from the tile.  Only an internal routing-BEL pip has a
+                // BEL/pin feature name to emit.
+                if (pd.flags != PIP_SITE_INTERNAL || pd.bel == -1)
+                    continue;
                 std::string belname = IdString(pd.bel).str(ctx);
                 std::string pinname = IdString(pd.extra_data).str(ctx);
                 bool skip_pinname = false;
@@ -637,8 +799,10 @@ struct FasmBackend
                 if (!skip_pinname)
                     out << "." << pinname;
                 out << std::endl;
+                emitted = true;
             }
         }
+        return emitted;
     }
 
     // Process flipflops in a half-tile
@@ -901,6 +1065,179 @@ struct FasmBackend
         pop(2);
     }
 
+    // UltraScale+ has one eight-lane SLICEL/SLICEM site per CLE tile and its
+    // U-Ray features live directly below the tile (for example
+    // CLEM_R_X32Y56.ALUT.INIT[63:0]).  The Series-7 writer above models two
+    // four-lane half-sites and therefore adds invalid SLICEL_X0/X1 scopes.
+    void write_luts_config_xcup(int tile, bool emit_unused_defaults)
+    {
+        auto lts = ctx->tileStatus[tile].lts;
+
+        push(get_tile_name(tile));
+        for (int i = 0; i < 8; i++) {
+            CellInfo *lut6 = lts == nullptr ? nullptr : lts->cells[(i << 4) | BEL_6LUT];
+            CellInfo *lut5 = lts == nullptr ? nullptr : lts->cells[(i << 4) | BEL_5LUT];
+            if (lut6 == nullptr && lut5 == nullptr && !emit_unused_defaults)
+                continue;
+
+            push(std::string(1, "ABCDEFGH"[i]) + "LUT");
+            if (lut6 != nullptr || lut5 != nullptr) {
+                write_vector("INIT[63:0]", get_lut_init(lut6, lut5));
+            } else {
+                // Vivado initializes every unused UltraScale+ LUT to
+                // 0x8000000080000000.  This accounts for exactly 70,560
+                // decoded default features (141,120 set payload bits) on
+                // xczu2cg.  Emit the default only for genuinely unused LUT
+                // BELs; an occupied LUT always gets its real INIT above.
+                std::vector<bool> default_init(64, false);
+                default_init[31] = true;
+                default_init[63] = true;
+                write_vector("INIT[63:0]", default_init);
+            }
+            pop();
+        }
+        pop();
+    }
+
+    // UltraScale+ FF configuration uses one set of shared control features
+    // for lanes A-D and another for lanes E-H.  Individual FF/FF2 INIT and
+    // SRVAL features remain lane-local.
+    void write_ffs_config_xcup(int tile)
+    {
+        auto lts = ctx->tileStatus[tile].lts;
+        if (lts == nullptr)
+            return;
+
+        push(get_tile_name(tile));
+        for (int half = 0; half < 2; ++half) {
+            bool found = false;
+            bool found_ff2 = false;
+            bool ceused = false;
+            bool clkinv = false;
+            bool srused = false;
+            bool srinv = false;
+            bool sync = false;
+            bool latch = false;
+
+            for (int lane = half * 4; lane < half * 4 + 4; ++lane) {
+                for (int secondary = 0; secondary < 2; ++secondary) {
+                    CellInfo *ff = lts->cells[(lane << 4) |
+                                              (secondary ? BEL_FF2 : BEL_FF)];
+                    if (ff == nullptr)
+                        continue;
+
+                    std::string type =
+                            str_or_default(ff->attrs, ctx->id("X_ORIG_TYPE"), "");
+                    bool this_latch = type == "LDCE" || type == "LDPE";
+                    bool this_sync = type == "FDRE" || type == "FDRE_1" ||
+                                     type == "FDSE" || type == "FDSE_1";
+                    bool this_srval = type == "FDSE" || type == "FDSE_1" ||
+                                      type == "FDPE" || type == "FDPE_1" ||
+                                      type == "LDPE";
+                    bool this_clkinv =
+                            boost::ends_with(type, "_1") ||
+                            int_or_default(ff->params,
+                                           ctx->id("IS_CLK_INVERTED")) == 1;
+                    bool this_srinv =
+                            int_or_default(ff->params,
+                                           ctx->id("IS_SR_INVERTED")) == 1;
+                    NetInfo *ce = get_net_or_empty(ff, ctx->id("CE"));
+                    NetInfo *sr = get_net_or_empty(ff, ctx->id("SR"));
+                    bool this_ceused =
+                            ce != nullptr &&
+                            ce->name != ctx->id("$PACKER_VCC_NET");
+                    bool this_srused =
+                            sr != nullptr &&
+                            sr->name != ctx->id("$PACKER_GND_NET");
+
+                    if (found) {
+                        if (ceused != this_ceused || clkinv != this_clkinv ||
+                            srused != this_srused || srinv != this_srinv ||
+                            sync != this_sync || latch != this_latch)
+                            log_error("FASM: UltraScale+ FF '%s' at %s has an "
+                                      "incompatible shared control set\n",
+                                      ff->name.c_str(ctx),
+                                      ctx->getBelName(ff->bel).c_str(ctx));
+                    } else {
+                        ceused = this_ceused;
+                        clkinv = this_clkinv;
+                        srused = this_srused;
+                        srinv = this_srinv;
+                        sync = this_sync;
+                        latch = this_latch;
+                    }
+                    found = true;
+                    found_ff2 |= secondary != 0;
+
+                    int default_init = this_srval ? 1 : 0;
+                    bool init = int_or_default(
+                                        ff->params, ctx->id("INIT"),
+                                        default_init) == 1;
+                    std::string lane_name(1, "ABCDEFGH"[lane]);
+                    push(lane_name + (secondary ? "FF2" : "FF"));
+                    write_bit(std::string("INIT.") + (init ? "V1" : "V0"));
+                    write_bit(std::string("SRVAL.") +
+                              (this_srval ? "V1" : "V0"));
+                    pop();
+
+                    // The bound site pip selects BYP/D5/D6/etc. into the FF.
+                    WireId d_wire =
+                            ctx->getBelPinWire(ff->bel, ctx->id("D"));
+                    if (d_wire == WireId())
+                        log_error("FASM: FF '%s' at %s has no D pin wire\n",
+                                  ff->name.c_str(ctx),
+                                  ctx->getBelName(ff->bel).c_str(ctx));
+                    bool wrote_ffmux = write_routing_bel(d_wire);
+                    if (!wrote_ffmux) {
+                        // A fabric route entering the FF's xX site input binds
+                        // only the site-entry pip; the logical FFMUX BYP arc
+                        // shares the FF D wire and is therefore not represented
+                        // by a separately bound site-internal pip.  Vivado
+                        // emits FFMUXx1/2.BYP for this case.  Without it the FF
+                        // data input remains on an unspecified mux selection.
+                        bool has_site_entry = false;
+                        for (auto pip : ctx->getPipsUphill(d_wire)) {
+                            auto &pd = ctx->locInfo(pip).pip_data[pip.index];
+                            if (ctx->getBoundPipNet(pip) != nullptr &&
+                                pd.flags == PIP_SITE_ENTRY) {
+                                has_site_entry = true;
+                                break;
+                            }
+                        }
+                        if (!has_site_entry)
+                            log_error("FASM: no routed FFMUX input for FF '%s' at %s\n",
+                                      ff->name.c_str(ctx),
+                                      ctx->getBelName(ff->bel).c_str(ctx));
+                        write_prefix();
+                        out << "FFMUX" << lane_name
+                            << (secondary ? "2" : "1") << ".BYP"
+                            << std::endl;
+                    }
+                }
+            }
+
+            if (!found)
+                continue;
+            std::string group = half ? "EFGHFF" : "ABCDFF";
+            push(group);
+            write_bit(std::string("CEUSED.") + (ceused ? "V1" : "V0"));
+            write_bit(std::string("CLKINV.") + (clkinv ? "V1" : "V0"));
+            write_bit(std::string("MODE.") + (latch ? "LATCH" : "FF"));
+            write_bit(std::string("SRINV.") + (srinv ? "V1" : "V0"));
+            write_bit(std::string("SRUSED.") + (srused ? "V1" : "V0"));
+            write_bit(std::string("SYNC.") + (sync ? "SYNC" : "ASYNC"));
+            pop();
+
+            if (found_ff2) {
+                push(group + "2");
+                write_bit(std::string("CEUSED.") + (ceused ? "V1" : "V0"));
+                write_bit(std::string("SRUSED.") + (srused ? "V1" : "V0"));
+                pop();
+            }
+        }
+        pop();
+    }
+
     void write_carry_config(int tile, int half)
     {
         std::string tname = get_tile_name(tile);
@@ -976,14 +1313,31 @@ struct FasmBackend
             if (ctx->isLogicTile(cell.second->bel))
                 used_logic_tiles.insert(cell.second->bel.tile);
         }
-        for (int tile : used_logic_tiles) {
-            write_luts_config(tile, 0);
-            write_luts_config(tile, 1);
-            write_ffs_config(tile, 0);
-            write_ffs_config(tile, 1);
-            write_carry_config(tile, 0);
-            write_carry_config(tile, 1);
-            blank();
+        if (ctx->xc7) {
+            for (int tile : used_logic_tiles) {
+                write_luts_config(tile, 0);
+                write_luts_config(tile, 1);
+                write_ffs_config(tile, 0);
+                write_ffs_config(tile, 1);
+                write_carry_config(tile, 0);
+                write_carry_config(tile, 1);
+                blank();
+            }
+        } else {
+            // U-Ray stores one eight-lane slice directly below each CLE tile.
+            // Vivado programs a defined INIT on every unused LUT, so visit all
+            // logic tiles rather than only those occupied by design cells.
+            auto tiles_and_types = ctx->getTilesAndTypes();
+            for (int tile = 0; tile < int(tiles_and_types.size()); ++tile) {
+                const std::string &tile_type = std::get<1>(tiles_and_types[tile]);
+                if (tile_type != "CLEL_L" && tile_type != "CLEL_R"
+                    && tile_type != "CLEM" && tile_type != "CLEM_R")
+                    continue;
+                write_luts_config_xcup(tile, true);
+                if (used_logic_tiles.count(tile))
+                    write_ffs_config_xcup(tile);
+                blank();
+            }
         }
     }
 
@@ -1067,6 +1421,26 @@ struct FasmBackend
         if (boost::starts_with(tile, "GTP_") || boost::starts_with(tile, "GTX_"))
             return;
         push(tile);
+
+        if (boost::starts_with(tile, "HDIO_")) {
+            push("IOB_X0Y" + std::to_string(ioLoc.y));
+            if (is_input && is_output) {
+                std::string group =
+                        (iostandard == "LVCMOS18")
+                                ? "LVCMOS18"
+                                : "LVCMOS12_LVCMOS15_LVCMOS25_LVCMOS33_LVTTL";
+                write_bit("IOSTANDARD_IN_OUT." + group);
+            } else if (is_input) {
+                write_bit("IOSTANDARD_IN." + iostandard);
+            } else if (is_output) {
+                int drive = int_or_default(pad->attrs, ctx->id("DRIVE"), 12);
+                write_bit("IOSTANDARD_OUT." + iostandard + "_IDRIVE_I" +
+                          std::to_string(drive) + "_SLEW_SLEW_" + slew);
+            }
+            write_bit("PULLTYPE." + pulltype);
+            pop(2);
+            return;
+        }
 
         bool is_riob18   = boost::starts_with(tile, "RIOB18_");
         // is_hp_bank covers BOTH RIOB18_ (right) and LIOB18_ (left) — the

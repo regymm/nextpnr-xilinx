@@ -2,6 +2,13 @@ import json
 
 def apply_tileconn(f, d):
 	def merge_nodes(a, b):
+		if a is b:
+			return
+		# U-Ray tile connectivity contains cycles.  Keep the larger node as the
+		# representative so repeated unions remain close to linear rather than
+		# repeatedly copying an ever-growing wire list.
+		if len(a.wires) < len(b.wires):
+			a, b = b, a
 		for bwire in b.wires:
 			bwire.tile.wire_to_node[bwire.index] = a
 			a.wires.append(bwire)

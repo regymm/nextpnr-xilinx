@@ -666,7 +666,12 @@ void get_bram36_ul_pins(Context *ctx, std::vector<std::pair<IdString, std::vecto
             break;
         }
     }
-    NPNR_ASSERT(spec_bel != BelId());
+    // A topology-first database may intentionally omit unsupported hard-block
+    // site variants.  BRAM packing calls this helper even when the design has
+    // no BRAM cells, so absence of a RAMB36 BEL must not prevent logic-only
+    // designs from being packed.
+    if (spec_bel == BelId())
+        return;
     std::set<std::string> belpins;
     for (auto &bp : ctx->getBelPins(spec_bel))
         if (ctx->getBelPinType(spec_bel, bp) == PORT_IN)

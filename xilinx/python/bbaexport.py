@@ -11,6 +11,7 @@ def main():
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--xray", help="Project X-Ray device database path for current family (e.g. ../prjxray-db/artix7)", type=str, default=os.path.join(rwbase, "external", "prjxray-db", "artix7"))
+	parser.add_argument("--uray", help="Project U-Ray family database path (e.g. /path/to/prjuray/database/zynqusp)", type=str)
 	parser.add_argument("--metadata", help="nextpnr-xilinx site metadata root", type=str, default=os.path.join(rwbase, "external", "nextpnr-xilinx-meta", "artix7"))
 	parser.add_argument("--device", help="name of device to export", type=str, required=True)
 	parser.add_argument("--constids", help="name of nextpnr constids file to read", type=str, default=os.path.join(rwbase, "constids.inc"))
@@ -21,7 +22,9 @@ def main():
 		constid.read_base(cf)
 	# Read and parse X-ray database
 	metadata_root = args.metadata
-	xraydb_root = args.xray
+	xraydb_root = args.uray if args.uray is not None else args.xray
+	if args.uray is not None and args.metadata.endswith("artix7"):
+		metadata_root = metadata_root.replace("artix7", "zynqusp")
 	if "xc7z" in args.device:
 		metadata_root = metadata_root.replace("artix7", "zynq7")
 		xraydb_root = xraydb_root.replace("artix7", "zynq7")

@@ -291,11 +291,11 @@ class Tile:
 		return self.data.cell_timing
 
 class Node:
-	def __init__(self, tile, wires=[]):
+	def __init__(self, tile, wires=None):
 		self.tile = tile
 		self.index = tile.node_autoidx
 		tile.node_autoidx += 1
-		self.wires = wires
+		self.wires = [] if wires is None else wires
 	def unique_index(self):
 		return (self.tile.y << 48) | (self.tile.x << 32) | self.index
 	def is_vcc(self):
@@ -327,6 +327,7 @@ def import_device(name, prjxray_root, metadata_root):
 	site_type_cache = {}
 	tile_type_cache = {}
 	tile_json_cache = {}
+	is_uray = os.path.isdir(os.path.join(prjxray_root, "tile_types"))
 	def parse_xy(xy):
 		xpos = xy.rfind("X")
 		ypos = xy.rfind("Y")
@@ -379,10 +380,16 @@ def import_device(name, prjxray_root, metadata_root):
 
 	def read_tile_type_json(tiletype):
 		if tiletype not in tile_json_cache:
-			if not os.path.exists(prjxray_root + "/tile_type_" + tiletype + ".json"):
+			if is_uray:
+				tile_json_path = os.path.join(
+					prjxray_root, "tile_types", "tile_type_" + tiletype + ".json")
+			else:
+				tile_json_path = os.path.join(
+					prjxray_root, "tile_type_" + tiletype + ".json")
+			if not os.path.exists(tile_json_path):
 				tile_json_cache[tiletype] = dict(wires={}, pips={}, sites=[])
 			else:
-				with open(prjxray_root + "/tile_type_" + tiletype + ".json", "r") as jf:
+				with open(tile_json_path, "r") as jf:
 					tile_json_cache[tiletype] = json.load(jf)
 		return tile_json_cache[tiletype]
 
@@ -437,8 +444,10 @@ def import_device(name, prjxray_root, metadata_root):
 						if "cap" in pindata:
 							tspd.capacitance = float(pindata["cap"])
 					td.sitepin_data[(sitetype, rel_xy, sitepin)] = tspd
-			if os.path.exists(prjxray_root + "/timings/" + tiletype + ".sdf"):
-				td.cell_timing = parse_sdf_file(prjxray_root + "/timings/" + tiletype + ".sdf")
+			timing_path = os.path.join(
+				prjxray_root, "timings", tiletype + ".sdf")
+			if os.path.exists(timing_path):
+				td.cell_timing = parse_sdf_file(timing_path)
 
 			tile_type_cache[tiletype] = td
 
@@ -455,6 +464,8 @@ def import_device(name, prjxray_root, metadata_root):
 	# Virtex-7 fabrics are e.g. xc7vx485t / xc7vh580t / xc7v585t (the optional
 	# x/h denotes the GTX/GTH sub-family), unlike the xc7[sakz]NNNt form.
 	match = re.search(r"^(xc7(?:[sakz]\d+t?|v[xh]?\d+t))\w+-\d", name)
+	if is_uray:
+		match = re.search(r"^(xczu\d+[a-z]+)-", name)
 	if not match:
 		raise RuntimeError("{} is not known device name".format(name))
 	fabricname = match.groups()[0]
@@ -464,9 +475,14 @@ def import_device(name, prjxray_root, metadata_root):
 		# https://github.com/f4pga/prjxray/pull/1889
 		fabricname = 'xc7a50t'
 	# Load intent JSON
-	with open(metadata_root + "/wire_intents.json", "r") as ijf:
-		ij = json.load(ijf)
-	with open(prjxray_root + "/" + fabricname + "/tilegrid.json") as gf:
+	intent_path = os.path.join(metadata_root, "wire_intents.json")
+	if os.path.exists(intent_path):
+		with open(intent_path, "r") as ijf:
+			ij = json.load(ijf)
+	else:
+		ij = {"tiles": {}, "intents": {}}
+	device_db_dir = name if is_uray else fabricname
+	with open(os.path.join(prjxray_root, device_db_dir, "tilegrid.json")) as gf:
 		tgj = json.load(gf)
 	# Numeric-aware key so site names like IOB_X1Y10 sort *after* IOB_X1Y9,
 	# matching the physical slave-at-low-Y / master-at-high-Y layout.  A
@@ -511,7 +527,7 @@ def import_device(name, prjxray_root, metadata_root):
 				t.interconn_xy = nxy
 				break
 	# Read package pins
-	with open(prjxray_root + "/" + name + "/package_pins.csv") as ppf:
+	with open(os.path.join(prjxray_root, name, "package_pins.csv")) as ppf:
 		for line in ppf:
 			sl = line.strip().split(",")
 			if len(sl) < 3:
@@ -519,6 +535,6 @@ def import_device(name, prjxray_root, metadata_root):
 			if sl[2] == "site":
 				continue # header
 			d.sites_by_name[sl[2]].package_pin = sl[0]
-	with open(prjxray_root + "/" + fabricname + "/tileconn.json", "r") as tcf:
+	with open(os.path.join(prjxray_root, device_db_dir, "tileconn.json"), "r") as tcf:
 		apply_tileconn(tcf, d)
 	return d

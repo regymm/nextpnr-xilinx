@@ -18,6 +18,35 @@ def get_bel_z_override(bel, default_z):
 		elif bt == "FIFO18E1_FIFO18E1":
 			return 10
 	if s.site_type() == "SLICEL" or s.site_type() == "SLICEM":
+		if t.tile_type() in ("CLEL_L", "CLEL_R", "CLEM", "CLEM_R"):
+			# UltraScale+ slices contain eight LUT/FF lanes in one site.
+			# z[6:4] selects A-H and z[3:0] selects the BEL kind.
+			subslices = "ABCDEFGH"
+			postfixes = ["6LUT", "5LUT", "FF", "FF2"]
+			for i, pf in enumerate(postfixes):
+				if len(bn) == len(pf) + 1 and bn[1:] == pf:
+					return (subslices.index(bn[0]) << 4) | i
+			if bn.startswith("FFMUX"):
+				return (subslices.index(bn[5]) << 4) | (5 if bn[6] == "2" else 4)
+			if bn.startswith("OUTMUX"):
+				return (subslices.index(bn[6]) << 4) | 6
+			special_z = {
+				"F7MUX_AB": 0x07,
+				"F7MUX_CD": 0x27,
+				"F7MUX_EF": 0x47,
+				"F7MUX_GH": 0x67,
+				"F8MUX_BOT": 0x08,
+				"F8MUX_TOP": 0x48,
+				"F9MUX": 0x09,
+				"CARRY8": 0x0A,
+				"CLK1INV": 0x0B,
+				"CLK2INV": 0x4B,
+				"LCLKINV": 0x1B,
+				"RST_ABCDINV": 0x0C,
+				"RST_EFGHINV": 0x4C,
+				"HARD0": 0x0D,
+			}
+			return special_z.get(bn, -1)
 		is_upper_site = (s.rel_xy()[0] == 1)
 		subslices = "ABCD"
 		postfixes = ["6LUT", "5LUT", "FF", "5FF"]
@@ -66,5 +95,13 @@ def get_bel_type_override(bt):
 		return "BUFGCTRL"
 	elif bt == "RAMB18E2_U_RAMB18E2" or bt == "RAMB18E2_L_RAMB18E2":
 		return "RAMB18E2_RAMB18E2"
+	elif bt == "HDIOB_PAD_M" or bt == "HDIOB_PAD_S":
+		return "PAD"
+	elif bt == "HDIOB_INBUF_M" or bt == "HDIOB_INBUF_S":
+		return "HDIOB_INBUF"
+	elif bt == "HDIOB_IBUFCTRL_M" or bt == "HDIOB_IBUFCTRL_S":
+		return "HDIOB_IBUFCTRL"
+	elif bt == "HDIOB_OUTBUF_M" or bt == "HDIOB_OUTBUF_S":
+		return "HDIOB_OUTBUF"
 	else:
 		return bt

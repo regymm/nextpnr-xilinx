@@ -344,11 +344,17 @@ class NextpnrTileType:
 
 		# Import pips
 		is_xc7_logic = (tile.tile_type() in ("CLBLL_L", "CLBLL_R", "CLBLM_L", "CLBLM_R"))
+		is_usp_logic = (tile.tile_type() in ("CLEL_L", "CLEL_R", "CLEM", "CLEM_R"))
 		for p in tile.pips():
 			# Exclude certain route-through pips that are broken or unsupported
 			if p.is_route_thru() and p.src_wire().name().endswith("_CE_INT"):
 				continue
-			if p.is_route_thru() and is_xc7_logic:
+			# Logic-tile pseudo PIPs consume a LUT or output mux and need an
+			# explicit route-through configuration that the FASM writer does not
+			# currently synthesize.  They were already excluded for 7-series;
+			# apply the same rule to UltraScale+ CLE/CLEM tiles so the router uses
+			# ordinary, database-covered interconnect instead.
+			if p.is_route_thru() and (is_xc7_logic or is_usp_logic):
 				continue
 			if p.is_route_thru() and "TFB" in p.dst_wire().name():
 				continue
@@ -357,9 +363,13 @@ class NextpnrTileType:
 			if "CLK_HROW_CK_INT" in p.src_wire().name():
 				continue
 			np = self.add_pip(p, False)
-			np.extra_data = 1 if p.is_route_thru() else 0
+			# Bit 0 marks a route-through. Bits 1/2 retain the orientation
+			# information needed to spell UltraScale+ bidirectional FASM as
+			# canonical-dst.canonical-src.FWD/REV.
+			np.extra_data = (1 if p.is_route_thru() else 0) | (2 if p.is_bidi() else 0)
 			if p.is_bidi():
-				self.add_pip(p, True)
+				reverse_np = self.add_pip(p, True)
+				reverse_np.extra_data = np.extra_data | 4
 		# Add pseudo-bels driving Vcc and GND
 		self.add_pseudo_bel(name="PSEUDO_GND_BEL", bel_type="PSEUDO_GND", pinname="Y", wire_idx=self.global_gnd_wire_index)
 		self.add_pseudo_bel(name="PSEUDO_VCC_BEL", bel_type="PSEUDO_VCC", pinname="Y", wire_idx=self.global_vcc_wire_index)
